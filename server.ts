@@ -7,6 +7,12 @@ import { createServer as createViteServer } from 'vite';
 import { INITIAL_120_PARTICIPANTS } from './src/data/sample120Participants';
 import type { Participant, ScanAttemptLog, SystemStats } from './src/types';
 
+import dotenv from 'dotenv';
+dotenv.config();
+
+import pg from 'pg';
+const { Pool } = pg;
+
 const app = express();
 const PORT = 3000;
 
@@ -44,8 +50,58 @@ let db: DatabaseSchema = {
   logs: []
 };
 
+// PostgreSQL cloud database connection pool
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false } // Required for secure cloud db hosts like Supabase/Neon
+    })
+  : null;
+
+// Initialize database schema in cloud if not exists
+async function initDb() {
+  if (pool) {
+    try {
+      console.log('[DB] Connecting to Supabase Cloud Database...');
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS chipset_db (
+          key VARCHAR(50) PRIMARY KEY,
+          value JSONB NOT NULL
+        )
+      `);
+      console.log('[DB] Supabase Cloud Database initialized successfully.');
+    } catch (err) {
+      console.error('[DB] Failed to initialize Supabase table:', err);
+    }
+  }
+}
+
 // Load or seed database
-function loadDatabase() {
+async function loadDatabase() {
+  if (pool) {
+    try {
+      const partsRes = await pool.query('SELECT value FROM chipset_db WHERE key = $1', ['participants']);
+      const logsRes = await pool.query('SELECT value FROM chipset_db WHERE key = $1', ['logs']);
+
+      if (partsRes.rows.length > 0) {
+        db.participants = partsRes.rows[0].value;
+        console.log(`[DB] Loaded ${Object.keys(db.participants).length} participants from Supabase Cloud Database.`);
+        
+        if (logsRes.rows.length > 0) {
+          db.logs = logsRes.rows[0].value;
+        }
+        return;
+      } else {
+        console.log('[DB] Cloud database is empty. Seeding initial 120 participants...');
+        await seedInitial120();
+        return;
+      }
+    } catch (err) {
+      console.error('[DB] Error loading from Supabase, falling back to local file storage:', err);
+    }
+  }
+
+  // Local filesystem fallback
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -53,28 +109,47 @@ function loadDatabase() {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
       db = JSON.parse(data);
-      console.log(`[DB] Loaded ${Object.keys(db.participants).length} participants from storage.`);
+      console.log(`[DB] Loaded ${Object.keys(db.participants).length} participants from local storage.`);
     } else {
-      seedInitial120();
+      await seedInitial120();
     }
   } catch (err) {
     console.error('[DB] Error loading database, initializing fresh seed:', err);
-    seedInitial120();
+    await seedInitial120();
   }
 }
 
-function saveDatabase() {
+async function saveDatabase() {
+  if (pool) {
+    try {
+      await Promise.all([
+        pool.query(
+          'INSERT INTO chipset_db (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+          ['participants', JSON.stringify(db.participants)]
+        ),
+        pool.query(
+          'INSERT INTO chipset_db (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+          ['logs', JSON.stringify(db.logs)]
+        )
+      ]);
+      console.log('[DB] Saved database state to Supabase Cloud Database.');
+    } catch (err) {
+      console.error('[DB] Failed to save database to Supabase:', err);
+    }
+  }
+
+  // Always keep a local file backup for safety
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[DB] Failed to save database:', err);
+    console.error('[DB] Failed to save database locally:', err);
   }
 }
 
-function seedInitial120() {
+async function seedInitial120() {
   db.participants = {};
   db.logs = [];
   const existingIds = new Set<string>();
@@ -96,11 +171,16 @@ function seedInitial120() {
     };
   });
 
-  saveDatabase();
+  await saveDatabase();
   console.log(`[DB] Seeded initial database with ${Object.keys(db.participants).length} participants.`);
 }
 
-loadDatabase();
+// Bootstrap database connection
+async function bootstrapDb() {
+  await initDb();
+  await loadDatabase();
+}
+bootstrapDb();
 
 // --- REST API ROUTES ---
 
@@ -250,7 +330,7 @@ app.get('/api/verify/:unique_id', (req, res) => {
 });
 
 // 4. Check-in endpoint (Staff action)
-app.post('/api/checkin/:unique_id', (req, res) => {
+app.post('/api/checkin/:unique_id', async (req, res) => {
   const unique_id = req.params.unique_id.trim().toUpperCase();
   const participant = db.participants[unique_id];
 
@@ -295,7 +375,7 @@ app.post('/api/checkin/:unique_id', (req, res) => {
   db.logs.unshift(log);
   if (db.logs.length > 500) db.logs.pop();
 
-  saveDatabase();
+  await saveDatabase();
 
   return res.json({
     success: true,
@@ -306,7 +386,7 @@ app.post('/api/checkin/:unique_id', (req, res) => {
 });
 
 // 5. Undo / Reset Check-in
-app.post('/api/checkin/undo/:unique_id', (req, res) => {
+app.post('/api/checkin/undo/:unique_id', async (req, res) => {
   const unique_id = req.params.unique_id.trim().toUpperCase();
   const participant = db.participants[unique_id];
 
@@ -316,7 +396,7 @@ app.post('/api/checkin/undo/:unique_id', (req, res) => {
 
   participant.checked_in = false;
   participant.check_in_time = null;
-  saveDatabase();
+  await saveDatabase();
 
   return res.json({
     success: true,
@@ -325,7 +405,7 @@ app.post('/api/checkin/undo/:unique_id', (req, res) => {
   });
 });
 // 5.5. RSVP Endpoint (Participant confirmation)
-app.post('/api/rsvp/:unique_id', (req, res) => {
+app.post('/api/rsvp/:unique_id', async (req, res) => {
   const unique_id = req.params.unique_id.trim().toUpperCase();
   const { status } = req.body;
   const participant = db.participants[unique_id];
@@ -343,7 +423,7 @@ app.post('/api/rsvp/:unique_id', (req, res) => {
   }
 
   participant.rsvp_status = status;
-  saveDatabase();
+  await saveDatabase();
 
   res.json({
     success: true,
@@ -357,7 +437,7 @@ app.post('/api/rsvp/:unique_id', (req, res) => {
 });
 
 // 5.6. Swap Candidates Endpoint (Admin action)
-app.post('/api/participants/swap', (req, res) => {
+app.post('/api/participants/swap', async (req, res) => {
   const { original_id, new_id } = req.body;
   const original = db.participants[String(original_id).trim().toUpperCase()];
   const replacement = db.participants[String(new_id).trim().toUpperCase()];
@@ -381,7 +461,7 @@ app.post('/api/participants/swap', (req, res) => {
   replacement.selection_status = 'SELECTED' as any;
   replacement.rsvp_status = 'PENDING';
 
-  saveDatabase();
+  await saveDatabase();
 
   res.json({
     success: true,
@@ -392,7 +472,7 @@ app.post('/api/participants/swap', (req, res) => {
 });
 
 // 6. Bulk Ingest participants (CSV / Excel import)
-app.post('/api/participants/bulk', (req, res) => {
+app.post('/api/participants/bulk', async (req, res) => {
   const { participants: newEntries, overwrite } = req.body;
 
   if (!Array.isArray(newEntries) || newEntries.length === 0) {
@@ -459,7 +539,7 @@ app.post('/api/participants/bulk', (req, res) => {
     }
   });
 
-  saveDatabase();
+  await saveDatabase();
 
   res.json({
     success: true,
@@ -469,8 +549,8 @@ app.post('/api/participants/bulk', (req, res) => {
 });
 
 // 7. Reset to 120 Seed Participants
-app.post('/api/reset-120', (req, res) => {
-  seedInitial120();
+app.post('/api/reset-120', async (req, res) => {
+  await seedInitial120();
   res.json({
     success: true,
     message: 'Reset and seeded 120 personalized Cloud9 participants successfully.',
@@ -479,10 +559,10 @@ app.post('/api/reset-120', (req, res) => {
 });
 
 // 8. Clear database
-app.post('/api/clear', (req, res) => {
+app.post('/api/clear', async (req, res) => {
   db.participants = {};
   db.logs = [];
-  saveDatabase();
+  await saveDatabase();
   res.json({ success: true, message: 'Database cleared' });
 });
 
@@ -492,9 +572,9 @@ app.get('/api/logs', (req, res) => {
 });
 
 // 10. Clear logs
-app.post('/api/logs/clear', (req, res) => {
+app.post('/api/logs/clear', async (req, res) => {
   db.logs = [];
-  saveDatabase();
+  await saveDatabase();
   res.json({ success: true, message: 'Logs cleared' });
 });
 
