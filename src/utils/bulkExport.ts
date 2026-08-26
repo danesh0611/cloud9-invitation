@@ -19,15 +19,27 @@ export async function renderInvitationCardToCanvas(
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
   // ── 1. Left panel: background template image ──────────────────────────────
-  const bgImg = new Image();
-  bgImg.crossOrigin = 'anonymous';
-  bgImg.src = '/assets/ticket_bg.png';
-  await new Promise<void>((resolve) => {
-    bgImg.onload = () => resolve();
-    bgImg.onerror = () => resolve(); // continue even if image fails
-  });
-  // Draw only the left 780px of the 1100px template (scaled to fit)
-  ctx.drawImage(bgImg, 0, 0, W, H, 0, 0, 780, H);
+  // Fetch as blob first to guarantee it loads in canvas context (avoids relative-path issues)
+  let bgObjectUrl: string | null = null;
+  try {
+    const resp = await fetch('/assets/ticket_bg.png');
+    if (resp.ok) {
+      const imgBlob = await resp.blob();
+      bgObjectUrl = URL.createObjectURL(imgBlob);
+    }
+  } catch (_) { /* silently skip if fetch fails */ }
+
+  if (bgObjectUrl) {
+    const bgImg = new Image();
+    await new Promise<void>((resolve) => {
+      bgImg.onload = () => resolve();
+      bgImg.onerror = () => resolve();
+      bgImg.src = bgObjectUrl!;
+    });
+    // CSS: backgroundSize '141% 100%' on 780px panel = draw at full 1100×500
+    ctx.drawImage(bgImg, 0, 0, W, H);
+    URL.revokeObjectURL(bgObjectUrl);
+  }
 
   // ── 2. Right stub panel background ────────────────────────────────────────
   const STUB_X = 780;
