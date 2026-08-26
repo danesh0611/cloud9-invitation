@@ -30,6 +30,9 @@ export default function App() {
   // Selected participant for modal view
   const [modalParticipant, setModalParticipant] = useState<Participant | null>(null);
 
+  // Check if current URL was loaded as a direct participant invitation pass view
+  const isParticipantView = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('id');
+
   // Fetch all system data
   const refreshData = useCallback(async () => {
     try {
@@ -117,11 +120,13 @@ export default function App() {
       </div>
 
       {/* Sticky Frosted Navbar */}
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={handleSelectTab}
-        stats={stats}
-      />
+      {!isParticipantView && (
+        <Navbar
+          currentTab={currentTab}
+          onSelectTab={handleSelectTab}
+          stats={stats}
+        />
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
@@ -147,7 +152,7 @@ export default function App() {
             {currentTab === 'verify' && (
               <VerifierView
                 initialId={verifyTargetId}
-                onNavigateToScanner={() => handleSelectTab('scanner')}
+                onNavigateToScanner={isParticipantView ? undefined : () => handleSelectTab('scanner')}
               />
             )}
 
