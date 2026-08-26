@@ -177,11 +177,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             };
           }).filter((r) => r.name && r.email);
 
+          // Helper function to check if a college is SRM
+          const isSrm = (collegeStr: string, emailStr: string) => {
+            const col = collegeStr.toLowerCase().trim();
+            const em = emailStr.toLowerCase().trim();
+            return col.includes('srm') || em.includes('srm') || em.includes('@srmist.edu.in');
+          };
+
+          // Helper function to check if year is 1st Year
+          const isFirstYear = (yearStr: string) => {
+            const y = yearStr.toLowerCase().trim();
+            return y.includes('1') || y.includes('first') || y.includes('1st') || y === 'i' || y.includes('i year');
+          };
+
+          // Filter SRM candidates
+          const srmCandidates = validRows.filter(r => isSrm(r.college, r.email));
+          
+          // Separate into First Years and Other Years
+          const firstYears = srmCandidates.filter(r => isFirstYear(r.year_of_study));
+          const otherYears = srmCandidates.filter(r => !isFirstYear(r.year_of_study));
+
+          // Shuffle helper
+          const shuffle = <T,>(arr: T[]): T[] => {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+          };
+
+          const shuffledFirst = shuffle(firstYears);
+          const shuffledOther = shuffle(otherYears);
+
+          // Calculate draws: 70% of 120 is 84 (1st years), 30% of 120 is 36 (other years)
+          let firstYearDraw = 84;
+          let otherYearDraw = 36;
+
+          // Perform draws with fallback if one group is short
+          let selectedFirst = shuffledFirst.slice(0, firstYearDraw);
+          let selectedOther = shuffledOther.slice(0, otherYearDraw);
+
+          if (selectedFirst.length < firstYearDraw) {
+            const deficit = firstYearDraw - selectedFirst.length;
+            selectedOther = shuffledOther.slice(0, otherYearDraw + deficit);
+          } else if (selectedOther.length < otherYearDraw) {
+            const deficit = otherYearDraw - selectedOther.length;
+            selectedFirst = shuffledFirst.slice(0, firstYearDraw + deficit);
+          }
+
+          // Combine selected emails
+          const selectedEmails = new Set([
+            ...selectedFirst.map(p => p.email),
+            ...selectedOther.map(p => p.email)
+          ]);
+
           const formatted = validRows.map((row) => ({
             name: row.name,
             email: row.email,
             team_name: row.regNum || row.team || undefined,
-            selection_status: 'SELECTED',
+            selection_status: selectedEmails.has(row.email) ? 'SELECTED' as const : 'NOT_SELECTED' as const,
             college: row.college,
             year_of_study: row.year_of_study,
             phone: row.phone,
