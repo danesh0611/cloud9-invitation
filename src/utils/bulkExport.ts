@@ -11,14 +11,41 @@ export async function renderInvitationCardToCanvas(
   baseUrl: string
 ): Promise<Blob> {
   const canvas = document.createElement('canvas');
-  const width = 800;
-  const height = 1220;
+  const width = 1100;
+  const height = 500;
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  // 1. Yellow/Amber Dark Theme Gradient Background
+  // Helper function to wrap text inside canvas
+  function wrapText(
+    c: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+  ) {
+    const words = text.split(' ');
+    let line = '';
+    let currentY = y;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = c.measureText(testLine);
+      const testWidth = metrics.width;
+      if (testWidth > maxWidth && n > 0) {
+        c.fillText(line, x, currentY);
+        line = words[n] + ' ';
+        currentY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    c.fillText(line, x, currentY);
+  }
+
+  // 1. Dark Theme Gradient Background
   const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
   bgGrad.addColorStop(0, '#0d0d12');
   bgGrad.addColorStop(0.35, '#14120c');
@@ -27,35 +54,45 @@ export async function renderInvitationCardToCanvas(
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Yellow & Gold Radial Glow Orbs
-  const glowTop = ctx.createRadialGradient(width - 80, 120, 10, width - 80, 120, 320);
-  glowTop.addColorStop(0, 'rgba(245, 158, 11, 0.28)');
-  glowTop.addColorStop(1, 'rgba(245, 158, 11, 0)');
+  // 2. Green & Red Radial Ambient Glows
+  const glowTop = ctx.createRadialGradient(200, 100, 10, 200, 100, 250);
+  glowTop.addColorStop(0, 'rgba(16, 185, 129, 0.12)');
+  glowTop.addColorStop(1, 'rgba(16, 185, 129, 0)');
   ctx.fillStyle = glowTop;
   ctx.beginPath();
-  ctx.arc(width - 80, 120, 320, 0, Math.PI * 2);
+  ctx.arc(200, 100, 250, 0, Math.PI * 2);
   ctx.fill();
 
-  const glowBottom = ctx.createRadialGradient(100, height - 120, 10, 100, height - 120, 300);
-  glowBottom.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
-  glowBottom.addColorStop(1, 'rgba(234, 179, 8, 0)');
+  const glowBottom = ctx.createRadialGradient(600, 400, 10, 600, 400, 250);
+  glowBottom.addColorStop(0, 'rgba(239, 68, 68, 0.1)');
+  glowBottom.addColorStop(1, 'rgba(239, 68, 68, 0)');
   ctx.fillStyle = glowBottom;
   ctx.beginPath();
-  ctx.arc(100, height - 120, 300, 0, Math.PI * 2);
+  ctx.arc(600, 400, 250, 0, Math.PI * 2);
   ctx.fill();
 
-  // 3. Card Outer Border with Gold Accent
+  // 3. Card Outer Border
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
   ctx.lineWidth = 3;
-  roundRect(ctx, 24, 24, width - 48, height - 48, 28);
+  roundRect(ctx, 16, 16, width - 32, height - 32, 28);
   ctx.stroke();
 
-  // 4. Draw Official CHIPSET Logo on Top
+  // 4. Dashed Separator Line
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.moveTo(780, 16);
+  ctx.lineTo(780, 484);
+  ctx.stroke();
+  ctx.setLineDash([]); // Reset dash
+
+  // 5. Draw Official CHIPSET Logo on Top Left
   const logoSvg = getChipsetLogoSvgString({
     textColor: '#FFFFFF',
     amberColor: '#F59E0B',
-    width: 320,
-    height: 85,
+    width: 220,
+    height: 60,
   });
   const logoBlob = new Blob([logoSvg], { type: 'image/svg+xml;charset=utf-8' });
   const logoUrl = URL.createObjectURL(logoBlob);
@@ -67,53 +104,81 @@ export async function renderInvitationCardToCanvas(
     logoImg.src = logoUrl;
   });
 
-  ctx.drawImage(logoImg, 55, 55, 320, 85);
+  ctx.drawImage(logoImg, 50, 45, 220, 60);
   URL.revokeObjectURL(logoUrl);
 
-  // Badge: SELECTED (Gold Badge)
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
-  ctx.lineWidth = 2;
-  roundRect(ctx, width - 220, 72, 160, 48, 24);
-  ctx.fill();
-  ctx.stroke();
+  // Google X CHIPSET text on the right side of left panel
+  ctx.fillStyle = '#E2E8F0';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('GOOGLE × CHIPSET', 740, 80);
 
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 18px sans-serif';
+  // 6. Section: Congratulations Centerpiece
   ctx.textAlign = 'center';
-  ctx.fillText('★ SELECTED', width - 140, 103);
+  ctx.fillStyle = '#5ae0ff';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.shadowColor = 'rgba(90, 224, 255, 0.7)';
+  ctx.shadowBlur = 10;
+  ctx.fillText('CONGRATULATIONS!', 390, 175);
+  ctx.shadowBlur = 0; // Reset shadow
 
-  // Separator Line
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.2)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(55, 165);
-  ctx.lineTo(width - 55, 165);
-  ctx.stroke();
-
-  // 5. Section: Congratulations, [NAME]!
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.fillText('PERSONAL INVITATION PASS', width / 2, 215);
+  ctx.fillStyle = '#94A3B8';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText("YOU'VE BEEN CLEARED FOR", 390, 215);
 
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '900 42px sans-serif';
-  if (participant.name.length > 20) {
-    ctx.font = '900 34px sans-serif';
-  }
-  ctx.fillText(`Congratulations, ${participant.name}!`, width / 2, 275);
+  ctx.font = '900 62px sans-serif';
+  ctx.fillText('CLOUD9', 390, 285);
 
-  ctx.fillStyle = '#E2E8F0';
-  ctx.font = '500 22px sans-serif';
-  ctx.fillText('You are selected for Cloud 9 event.', width / 2, 335);
+  // Bottom Grid Separator
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(50, 345);
+  ctx.lineTo(740, 345);
+  ctx.stroke();
 
-  // 6. Generate QR Code image with High Contrast
+  // Bottom Panel Text Details
+  ctx.textAlign = 'left';
+  
+  // Date
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('DATE', 55, 375);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 22px monospace';
+  ctx.fillText('29', 55, 405);
+  ctx.fillStyle = '#5ae0ff';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('AUGUST 2026', 55, 423);
+
+  // Destination
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('DESTINATION', 190, 375);
+  ctx.fillStyle = '#F87171';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('GALLERY HALL 1', 190, 405);
+
+  // Boarding Time
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('BOARDING TIME', 335, 375);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 16px sans-serif';
+  ctx.fillText('9 AM', 335, 402);
+  ctx.fillStyle = '#5ae0ff';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('ONWARDS', 335, 420);
+
+
+
+  // 7. QR Code rendering
   const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
     errorCorrectionLevel: 'H',
     margin: 2,
-    width: 320,
+    width: 160,
     color: {
       dark: '#08080C',
       light: '#FFFFFF',
@@ -127,79 +192,117 @@ export async function renderInvitationCardToCanvas(
     qrImg.src = qrDataUrl;
   });
 
-  // Draw QR background box with warm border
-  const qrBoxSize = 340;
-  const qrBoxY = 440;
   ctx.fillStyle = '#FFFFFF';
-  roundRect(ctx, (width - qrBoxSize) / 2, qrBoxY, qrBoxSize, qrBoxSize, 22);
+  roundRect(ctx, 655, 360, 85, 85, 12);
   ctx.fill();
+  ctx.drawImage(qrImg, 660, 365, 75, 75);
 
-  // Draw QR image
-  ctx.drawImage(qrImg, (width - 310) / 2, qrBoxY + 15, 310, 310);
-
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = 'bold 15px monospace';
-  ctx.fillText('SCAN TO VERIFY AGAINST CHIPSET DATABASE', width / 2, qrBoxY + qrBoxSize + 35);
-
-  // 7. Selection ID & Year of Study Boxes with Gold Glow
-  const idBoxY = 865;
-  
-  // Left Box (Selection ID)
-  ctx.fillStyle = 'rgba(20, 16, 8, 0.85)';
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
-  ctx.lineWidth = 2;
-  roundRect(ctx, 90, idBoxY, 250, 115, 18);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#FCD34D';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('SELECTION ID', 215, idBoxY + 36);
-
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = '900 28px monospace';
-  ctx.fillText(participant.unique_id, 215, idBoxY + 82);
-
-  // Right Box (Year of Study)
-  ctx.fillStyle = 'rgba(20, 16, 8, 0.85)';
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
-  ctx.lineWidth = 2;
-  roundRect(ctx, 360, idBoxY, 250, 115, 18);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#FCD34D';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('YEAR OF STUDY', 485, idBoxY + 36);
-
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = '900 24px sans-serif';
-  ctx.fillText(participant.year_of_study || 'N/A', 485, idBoxY + 82);
-
-  // 8. Footer Anti-Tamper & Branding
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.2)';
+  // Left Footer
+  ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(55, 1030);
-  ctx.lineTo(width - 55, 1030);
+  ctx.moveTo(50, 455);
+  ctx.lineTo(740, 455);
   ctx.stroke();
 
-  ctx.fillStyle = '#34D399';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.fillStyle = '#475569';
+  ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText('🛡️ Database-Authoritative Key', 55, 1070);
-
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = 'bold 14px monospace';
-  ctx.textAlign = 'right';
-  ctx.fillText(`CHIPSET • ${new Date().getFullYear()}`, width - 55, 1070);
-
-  ctx.fillStyle = '#94A3B8';
-  ctx.font = '13px sans-serif';
+  ctx.fillText('GOOGLE', 55, 475);
   ctx.textAlign = 'center';
-  ctx.fillText('Official Chipset Community Pass • Non-Transferable', width / 2, 1125);
+  ctx.fillText('CHIPSET COMMUNITY', 390, 475);
+  ctx.textAlign = 'right';
+  ctx.fillText('GOOGLE', 740, 475);
+
+
+  // --- RIGHT PANEL: STUB TICKET ---
+  // Blue banner
+  ctx.fillStyle = '#0f4c9c';
+  roundRect(ctx, 810, 40, 240, 40, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('BOARDING PASS', 930, 65);
+
+  ctx.textAlign = 'left';
+  
+  // Passenger
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('PASSENGER', 815, 110);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(participant.name.toUpperCase(), 815, 130);
+
+  // Flight & Date
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('FLIGHT', 815, 165);
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('CLOUD9 ☁️', 815, 185);
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('DATE', 940, 165);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('29 AUG 2026', 940, 185);
+
+  // Destination
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('DESTINATION', 815, 220);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('GALLERY HALL 1', 815, 240);
+
+  // Boarding Time & Gate
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('BOARDING TIME', 815, 275);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('9 AM ONWARDS', 815, 295);
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText('GATE', 940, 275);
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 8px sans-serif';
+  wrapText(ctx, 'Block V 1st floor near Central Library', 940, 295, 110, 10);
+
+  // Stub Divider
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(810, 360);
+  ctx.lineTo(1050, 360);
+  ctx.stroke();
+
+  // Stub Footer Info
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 7px sans-serif';
+  ctx.fillText('CHIPSET PASS', 815, 385);
+  ctx.fillStyle = '#5ae0ff';
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText(participant.unique_id, 815, 410);
+
+  // Draw Barcode Box
+  ctx.fillStyle = '#FFFFFF';
+  roundRect(ctx, 930, 375, 120, 50, 6);
+  ctx.fill();
+
+  // Draw Barcode Stripes
+  ctx.fillStyle = '#000000';
+  let barX = 940;
+  const barPattern = [1, 2, 1, 3, 1, 2, 3, 1, 2, 1, 2, 1, 3];
+  barPattern.forEach((w) => {
+    ctx.fillRect(barX, 383, w * 2, 34);
+    barX += (w * 2) + 3;
+  });
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {

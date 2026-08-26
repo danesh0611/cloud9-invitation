@@ -135,103 +135,169 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
   }[theme];
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[390px]">
-      {/* Printable / Renderable Card Element with Chipset Logo in Every Image */}
+    <div className="flex flex-col items-center w-full max-w-[850px] mx-auto select-none">
+      {/* Printable / Renderable Boarding Pass Element */}
       <div
         ref={cardRef}
         id={`invitation-card-${participant.unique_id}`}
-        className={`relative w-full rounded-3xl overflow-hidden transition-all duration-300 ${themeStyles.card} ${
-          compact ? 'p-6' : 'p-7'
-        }`}
+        className="relative w-full rounded-3xl overflow-hidden transition-all duration-300 bg-gradient-to-b from-[#121118] via-[#0a090d] to-[#040406] text-white border-2 border-amber-500/40 shadow-2xl shadow-amber-950/40 p-1"
       >
-        {/* Yellow ambient background glow */}
-        <div className={`absolute -top-10 -right-10 w-48 h-48 bg-gradient-to-br ${themeStyles.glow} blur-3xl -z-0 pointer-events-none rounded-full`} />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500/15 blur-3xl -z-0 pointer-events-none rounded-full" />
-
-        {/* Card Header with CHIPSET LOGO (Icon + CHIPSET + A TECHNICAL COMMUNITY) */}
-        <div className="relative z-10 flex items-center justify-between border-b border-amber-500/25 pb-4 mb-5">
-          <ChipsetLogo
-            size="sm"
-            theme={theme === 'light' ? 'light' : 'dark'}
-            variant="full"
-          />
-
-          <div className={`px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider border flex items-center gap-1 uppercase ${themeStyles.badge}`}>
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            SELECTED
-          </div>
-        </div>
-
-        {/* Congratulations & Participant Name */}
-        <div className="relative z-10 text-center mb-5">
-          <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-amber-400 mb-1">
-            Personal Invitation Pass
-          </p>
-          <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 text-white">
-            Congratulations, {participant.name}!
-          </h3>
-          <p className="text-xs text-amber-100/80 font-medium max-w-[280px] mx-auto leading-relaxed">
-            You are selected for Cloud 9 event.
-          </p>
-        </div>
-
-        {/* Unique QR Code Container with High-Res Contrast */}
-        <div className="relative z-10 flex flex-col items-center justify-center my-4">
-          <div className={`${themeStyles.qrBg} flex flex-col items-center justify-center`}>
-            <QRCodeSVG
-              value={verifyUrl}
-              size={compact ? 130 : 155}
-              level="H"
-              includeMargin={false}
-              fgColor="#08080C"
-              bgColor="#FFFFFF"
-            />
-          </div>
-          <p className="text-[10px] text-amber-300/80 mt-2.5 font-mono font-medium tracking-tight text-center">
-            Scan to verify against official database
-          </p>
-        </div>
-
-        {/* Selection ID & Metadata */}
-        <div className="relative z-10 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border ${themeStyles.idBadge}`}>
-              <span className="text-[9px] uppercase font-bold tracking-widest text-amber-400/80 mb-0.5">
-                Selection ID
-              </span>
-              <span className="text-sm font-mono font-black tracking-widest text-amber-400">
-                {participant.unique_id}
-              </span>
+        <div className="flex flex-col md:flex-row w-full min-h-[380px]">
+          
+          {/* LEFT PANEL: MAIN TICKET */}
+          <div className="relative flex-1 p-6 sm:p-7 flex flex-col justify-between border-b md:border-b-0 md:border-r border-dashed border-amber-500/35 bg-black/40">
+            {/* Ambient glows and map graphics */}
+            <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-rose-500/10 rounded-full blur-[80px] pointer-events-none" />
+            
+            {/* Header logos */}
+            <div className="relative z-10 flex items-center justify-between">
+              <ChipsetLogo size="sm" theme="dark" variant="full" />
+              <div className="flex items-center gap-1.5 font-mono text-[9px] font-black tracking-widest text-slate-300 bg-slate-900/60 border border-slate-700/50 px-3 py-1 rounded-md">
+                <span className="text-[#4285F4]">G</span>
+                <span className="text-[#EA4335]">o</span>
+                <span className="text-[#FBBC05]">o</span>
+                <span className="text-[#4285F4]">g</span>
+                <span className="text-[#34A853]">l</span>
+                <span className="text-[#EA4335]">e</span>
+                <span className="text-slate-400 font-normal">×</span>
+                <span className="text-amber-400">CHIPSET</span>
+              </div>
             </div>
-            <div className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border ${themeStyles.idBadge}`}>
-              <span className="text-[9px] uppercase font-bold tracking-widest text-amber-400/80 mb-0.5">
-                Year of Study
-              </span>
-              <span className="text-xs font-black text-amber-400 truncate max-w-full text-center">
-                {participant.year_of_study || 'N/A'}
-              </span>
+
+            {/* Neon centerpiece */}
+            <div className="relative z-10 text-center my-6 space-y-1.5">
+              <h2 className="text-[#5ae0ff] font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_10px_rgba(90,224,255,0.75)] animate-pulse">
+                CONGRATULATIONS!
+              </h2>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                You've been cleared for
+              </p>
+              <h1 className="text-4xl sm:text-5xl font-black tracking-[0.2em] text-white uppercase bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400">
+                CLOUD9
+              </h1>
+            </div>
+
+            {/* Bottom metadata panel */}
+            <div className="relative z-10 flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
+              <div className="grid grid-cols-3 gap-2.5 flex-1 text-left">
+                {/* Date */}
+                <div className="space-y-1">
+                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Date</span>
+                  <span className="text-sm font-black text-white block font-mono">29</span>
+                  <span className="text-[9px] uppercase font-bold text-[#5ae0ff] block">August 2026</span>
+                </div>
+                
+                {/* Destination */}
+                <div className="space-y-1">
+                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Destination</span>
+                  <span className="text-[9px] font-black text-rose-400 uppercase leading-tight block">Gallery Hall 1</span>
+                </div>
+
+                {/* Boarding Time */}
+                <div className="space-y-1">
+                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Boarding Time</span>
+                  <span className="text-xs font-black text-white block font-mono">9 AM</span>
+                  <span className="text-[9px] uppercase font-bold text-[#5ae0ff] block">ONWARDS</span>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center shrink-0">
+                <div className="bg-white p-2 rounded-xl border border-amber-500/20">
+                  <QRCodeSVG
+                    value={verifyUrl}
+                    size={75}
+                    level="H"
+                    includeMargin={false}
+                    fgColor="#08080C"
+                    bgColor="#FFFFFF"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Custom footer bar */}
+            <div className="w-full border-t border-dashed border-slate-800/80 mt-3 pt-2 flex items-center justify-between text-[8px] text-slate-500 uppercase tracking-widest font-mono">
+              <span className="text-blue-500/80">Google</span>
+              <span className="text-slate-400">CHIPSET</span>
+              <span className="text-red-500/80">Google</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-300 pt-2 border-t border-amber-500/20">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Anti-Tamper Verified</span>
+          {/* RIGHT PANEL: STUB TICKET */}
+          <div className="w-full md:w-[250px] bg-black/60 p-5 flex flex-col justify-between relative overflow-hidden">
+            {/* Plane watermark */}
+            <div className="absolute -bottom-6 -right-6 text-slate-900/10 text-9xl font-black pointer-events-none select-none">
+              ✈️
             </div>
-            <div className="font-mono text-[10px]">
-              {participant.checked_in ? (
-                <span className="text-amber-400 font-bold">✓ Checked In</span>
-              ) : (
-                <span className="text-emerald-400 font-semibold">Valid Pass</span>
-              )}
+
+            {/* Blue Banner */}
+            <div className="bg-[#0f4c9c] text-white flex items-center justify-between px-3.5 py-1.5 rounded-lg border border-blue-500/25">
+              <span className="text-[9px] font-bold uppercase tracking-wider">Boarding Pass</span>
+              <span className="text-xs">✈️</span>
+            </div>
+
+            {/* Details list */}
+            <div className="my-4 space-y-2.5 text-left relative z-10">
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Passenger</span>
+                <span className="text-xs font-black text-white uppercase truncate block max-w-full">
+                  {participant.name}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Flight</span>
+                  <span className="text-xs font-black text-amber-400 block font-mono">CLOUD9 ☁️</span>
+                </div>
+                <div>
+                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Date</span>
+                  <span className="text-xs font-black text-white block font-mono">29 AUG 2026</span>
+                </div>
+              </div>
+              <div>
+                <span className="text-[8px] uppercase font-bold text-slate-500 block">Destination</span>
+                <span className="text-xs font-black text-white uppercase truncate block max-w-full">
+                  Gallery Hall 1
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Boarding Time</span>
+                  <span className="text-xs font-black text-white block font-mono">9 AM ONWARDS</span>
+                </div>
+                <div>
+                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Gate</span>
+                  <span className="text-[9px] font-black text-yellow-400 leading-tight block uppercase break-words font-sans">
+                    Block V 1st floor near Central Library
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stub Footer */}
+            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3 relative z-10">
+              <div className="text-left shrink-0">
+                <span className="text-[7px] text-slate-500 uppercase tracking-widest block font-bold">Chipset Pass</span>
+                <span className="text-[9px] font-black text-[#5ae0ff] block font-mono tracking-widest">{participant.unique_id}</span>
+              </div>
+              
+              {/* Flex-based barcode representation */}
+              <div className="flex h-7 items-stretch gap-[1.5px] bg-white px-2 py-1 rounded-sm shrink-0 shadow-sm border border-slate-200">
+                {[1, 2, 1, 3, 1, 2, 3, 1, 2, 1, 2, 1, 3].map((w, idx) => (
+                  <div key={idx} className="bg-black" style={{ width: `${w}px` }} />
+                ))}
+              </div>
             </div>
           </div>
+
         </div>
       </div>
       
       {/* RSVP Response Panel */}
       {participant.selection_status === 'SELECTED' && (
-        <div className="w-full max-w-[390px] mt-4 p-4 rounded-2xl bg-[#0e0d14]/85 border border-amber-500/30 backdrop-blur-md text-center space-y-3 no-print">
+        <div className="w-full max-w-[850px] mt-4 p-4 rounded-2xl bg-[#0e0d14]/85 border border-amber-500/30 backdrop-blur-md text-center space-y-3 no-print">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">RSVP Confirmation</span>
             {rsvpStatus === 'CONFIRMED' ? (
@@ -280,7 +346,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
 
       {/* Action Toolbar underneath Card */}
       {!compact && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 max-w-[390px] w-full no-print">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 max-w-[850px] w-full no-print">
           <button
             id={`btn-download-${participant.unique_id}`}
             onClick={handleDownloadPng}
