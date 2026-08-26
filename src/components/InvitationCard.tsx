@@ -148,13 +148,23 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
 
         {/* Selection ID & Metadata */}
         <div className="relative z-10 space-y-3">
-          <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border ${themeStyles.idBadge}`}>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400/80 mb-0.5">
-              Selection ID
-            </span>
-            <span className="text-xl font-mono font-black tracking-widest text-amber-400">
-              {participant.unique_id}
-            </span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border ${themeStyles.idBadge}`}>
+              <span className="text-[9px] uppercase font-bold tracking-widest text-amber-400/80 mb-0.5">
+                Selection ID
+              </span>
+              <span className="text-sm font-mono font-black tracking-widest text-amber-400">
+                {participant.unique_id}
+              </span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border ${themeStyles.idBadge}`}>
+              <span className="text-[9px] uppercase font-bold tracking-widest text-amber-400/80 mb-0.5">
+                Year of Study
+              </span>
+              <span className="text-xs font-black text-amber-400 truncate max-w-full text-center">
+                {participant.year_of_study || 'N/A'}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-slate-300 pt-2 border-t border-amber-500/20">

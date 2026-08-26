@@ -141,22 +141,42 @@ export async function renderInvitationCardToCanvas(
   ctx.font = 'bold 15px monospace';
   ctx.fillText('SCAN TO VERIFY AGAINST CHIPSET DATABASE', width / 2, qrBoxY + qrBoxSize + 35);
 
-  // 7. Selection ID Box with Gold Glow
+  // 7. Selection ID & Year of Study Boxes with Gold Glow
   const idBoxY = 865;
+  
+  // Left Box (Selection ID)
   ctx.fillStyle = 'rgba(20, 16, 8, 0.85)';
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
   ctx.lineWidth = 2;
-  roundRect(ctx, 90, idBoxY, width - 180, 115, 18);
+  roundRect(ctx, 90, idBoxY, 250, 115, 18);
   ctx.fill();
   ctx.stroke();
 
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#FCD34D';
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillText('SELECTION ID', width / 2, idBoxY + 36);
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('SELECTION ID', 215, idBoxY + 36);
 
   ctx.fillStyle = '#F59E0B';
-  ctx.font = '900 40px monospace';
-  ctx.fillText(participant.unique_id, width / 2, idBoxY + 84);
+  ctx.font = '900 28px monospace';
+  ctx.fillText(participant.unique_id, 215, idBoxY + 82);
+
+  // Right Box (Year of Study)
+  ctx.fillStyle = 'rgba(20, 16, 8, 0.85)';
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 360, idBoxY, 250, 115, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FCD34D';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('YEAR OF STUDY', 485, idBoxY + 36);
+
+  ctx.fillStyle = '#F59E0B';
+  ctx.font = '900 24px sans-serif';
+  ctx.fillText(participant.year_of_study || 'N/A', 485, idBoxY + 82);
 
   // 8. Footer Anti-Tamper & Branding
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.2)';
