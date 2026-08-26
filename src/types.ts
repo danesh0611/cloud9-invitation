@@ -15,6 +15,8 @@ export interface Participant {
   year_of_study?: string;
   phone?: string;
   rsvp_status?: 'PENDING' | 'CONFIRMED' | 'DECLINED';
+  college_email?: string;
+  personal_email?: string;
 }
 
 export interface ScanAttemptLog {

@@ -3,6 +3,7 @@ import { ShieldCheck, CheckCircle, AlertTriangle, XCircle, Search, Clock, Users,
 import type { VerificationResponse } from '../types';
 import { formatTimestamp } from '../utils/idGenerator';
 import { ChipsetLogo } from './ChipsetLogo';
+import { InvitationCard } from './InvitationCard';
 
 interface VerifierViewProps {
   initialId?: string;
@@ -136,137 +137,13 @@ export const VerifierView: React.FC<VerifierViewProps> = ({
       {hasSearched && !loading && result && (
         <div className="animate-in fade-in slide-in-from-bottom-3 duration-300">
           {/* 1. VALID INVITATION */}
-          {result.valid && result.status === 'VALID' && result.participant && (
-            <div className="bg-[#0e0d14] border-2 border-emerald-500/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-              <div className="flex items-center gap-4 pb-4 border-b border-emerald-500/30">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10">
-                  <CheckCircle className="w-8 h-8" />
-                </div>
-                <div>
-                  <span className="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase">
-                    Official Verification Result
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-                    ✅ VALID INVITATION
-                  </h2>
-                </div>
-              </div>
-
-              {/* Registered Database Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 block mb-1">
-                    Participant Name (Database Truth)
-                  </span>
-                  <span className="text-xl font-bold text-white block">
-                    {result.participant.name}
-                  </span>
-                </div>
-
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 block mb-1">
-                    Selection ID
-                  </span>
-                  <span className="text-xl font-mono font-black text-amber-400 block">
-                    {result.participant.unique_id}
-                  </span>
-                </div>
-
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Status
-                  </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    {result.participant.selection_status}
-                  </span>
-                </div>
-
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Check-In State
-                  </span>
-                  <span className="text-sm font-semibold text-slate-300 block">
-                    {result.participant.checked_in ? (
-                      <span className="text-amber-400 font-bold">Checked In ({formatTimestamp(result.participant.check_in_time)})</span>
-                    ) : (
-                      <span className="text-emerald-400 font-bold">Not Yet Checked In</span>
-                    )}
-                  </span>
-                </div>
-
-                {result.participant.team_name && (
-                  <div className="sm:col-span-2 bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 block mb-1">
-                      Team Name
-                    </span>
-                    <span className="text-sm font-bold text-amber-300 block">
-                      {result.participant.team_name}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Anti-Tamper Notice */}
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  <strong>Security Assurance:</strong> The participant name <strong>{result.participant.name}</strong> was retrieved directly from the secure Chipset database, overriding any modified client screenshot.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* 2. ALREADY CHECKED IN */}
-          {result.valid && result.status === 'ALREADY_CHECKED_IN' && result.participant && (
-            <div className="bg-[#0e0d14] border-2 border-amber-500/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-              <div className="flex items-center gap-4 pb-4 border-b border-amber-500/30">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-                <div>
-                  <span className="text-xs font-mono font-bold tracking-widest text-amber-400 uppercase">
-                    Duplicate Scan Warning
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight flex items-center gap-2">
-                    ⚠️ ALREADY CHECKED IN
-                  </h2>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Participant Name
-                  </span>
-                  <span className="text-xl font-bold text-white block">
-                    {result.participant.name}
-                  </span>
-                </div>
-
-                <div className="bg-black/40 p-4 rounded-2xl border border-amber-500/20">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Selection ID
-                  </span>
-                  <span className="text-xl font-mono font-bold text-amber-400 block">
-                    {result.participant.unique_id}
-                  </span>
-                </div>
-
-                <div className="sm:col-span-2 bg-amber-500/10 p-4 rounded-2xl border border-amber-500/30">
-                  <div className="flex items-center gap-2 text-amber-300 mb-1">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold uppercase tracking-widest">
-                      Checked In At
-                    </span>
-                  </div>
-                  <span className="text-lg font-bold text-white block font-mono">
-                    {formatTimestamp(result.participant.check_in_time)}
-                  </span>
-                  <p className="text-xs text-amber-200/80 mt-1">
-                    This pass has already been used for entry and cannot be reused.
-                  </p>
-                </div>
-              </div>
+          {/* 1. VALID INVITATION & ALREADY CHECKED IN */}
+          {result.valid && (result.status === 'VALID' || result.status === 'ALREADY_CHECKED_IN') && result.participant && (
+            <div className="flex flex-col items-center justify-center space-y-4 animate-in zoom-in duration-300">
+              <InvitationCard
+                participant={result.participant as any}
+                onVerifyClick={undefined}
+              />
             </div>
           )}
 

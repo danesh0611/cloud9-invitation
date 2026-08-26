@@ -417,6 +417,8 @@ app.post('/api/participants/bulk', (req, res) => {
     const cleanCollege = entry.college ? String(entry.college).trim() : undefined;
     const cleanYear = entry.year_of_study ? String(entry.year_of_study).trim() : undefined;
     const cleanPhone = entry.phone ? String(entry.phone).trim() : undefined;
+    const cleanCollegeEmail = entry.college_email ? String(entry.college_email).trim().toLowerCase() : undefined;
+    const cleanPersonalEmail = entry.personal_email ? String(entry.personal_email).trim().toLowerCase() : undefined;
 
     if (existingEmails.has(cleanEmail) && !overwrite) {
       const existing = existingEmails.get(cleanEmail)!;
@@ -426,6 +428,8 @@ app.post('/api/participants/bulk', (req, res) => {
       existing.college = cleanCollege;
       existing.year_of_study = cleanYear;
       existing.phone = cleanPhone;
+      existing.college_email = cleanCollegeEmail;
+      existing.personal_email = cleanPersonalEmail;
       updated++;
     } else {
       const id = generateSecureUniqueId(existingIds);
@@ -444,7 +448,9 @@ app.post('/api/participants/bulk', (req, res) => {
         college: cleanCollege,
         year_of_study: cleanYear,
         phone: cleanPhone,
-        rsvp_status: cleanStatus === 'SELECTED' ? 'PENDING' : undefined
+        rsvp_status: cleanStatus === 'SELECTED' ? 'PENDING' : undefined,
+        college_email: cleanCollegeEmail,
+        personal_email: cleanPersonalEmail
       };
       db.participants[id] = newP;
       existingEmails.set(cleanEmail, newP);

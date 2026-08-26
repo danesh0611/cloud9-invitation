@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink } from 'lucide-react';
+import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail } from 'lucide-react';
 import type { Participant } from '../types';
 import { ChipsetLogo } from './ChipsetLogo';
 
@@ -75,6 +75,28 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
     navigator.clipboard.writeText(verifyUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareEmail = () => {
+    const toEmails = [
+      participant.college_email,
+      participant.personal_email,
+      participant.email
+    ].filter(Boolean)
+     .filter((val, idx, self) => self.indexOf(val) === idx);
+
+    const toField = toEmails.join(',');
+    const subject = encodeURIComponent("You are selected for the Cloud9 Event!");
+    const body = encodeURIComponent(
+      `Hi ${participant.name},\n\n` +
+      `Congratulations! You have been selected for the Cloud9 event.\n\n` +
+      `Please RSVP to confirm your seat and download your invitation pass here:\n` +
+      `${verifyUrl}\n\n` +
+      `Looking forward to seeing you at the event!\n\n` +
+      `Best regards,\n` +
+      `Cloud9 Organizing Team`
+    );
+    window.location.href = `mailto:${toField}?subject=${subject}&body=${body}`;
   };
 
   const handlePrint = () => {
@@ -277,6 +299,16 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
             {copied ? 'Copied' : 'Link'}
+          </button>
+
+          <button
+            id={`btn-email-${participant.unique_id}`}
+            onClick={handleShareEmail}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-amber-500/10 hover:bg-amber-500/20 backdrop-blur-md border border-amber-500/30 text-amber-300 transition-all active:scale-95 cursor-pointer"
+            title="Open default email client (Gmail) to send pass"
+          >
+            <Mail className="w-3.5 h-3.5 text-amber-400" />
+            <span>Email</span>
           </button>
 
           <button

@@ -155,6 +155,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             const name = getVal(['Full Name', 'name', 'Name', 'participant_name']) || '';
             const email = getVal(['College Email ID', 'Personal Email ID', 'email', 'Email']) || '';
+            const collegeEmail = getVal(['College Email ID', 'college_email', 'srm_email']);
+            const personalEmail = getVal(['Personal Email ID', 'personal_email']);
             const regNum = getVal(['University Registration Number', 'registration_number', 'Registration Number']);
             const team = getVal(['team_name', 'team', 'Team']);
             const yearOfStudy = getVal(['Which year of study are you currently in?', 'year_of_study', 'Year of study', 'Year']);
@@ -181,6 +183,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               college: college ? String(college).trim() : 'UNKNOWN',
               year_of_study: yearOfStudy ? String(yearOfStudy).trim() : 'UNKNOWN',
               phone: phone ? String(phone).trim() : undefined,
+              college_email: collegeEmail ? String(collegeEmail).trim().toLowerCase() : undefined,
+              personal_email: personalEmail ? String(personalEmail).trim().toLowerCase() : undefined,
             };
           }).filter((r) => r.name && r.email);
 
@@ -247,6 +251,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             college: row.college,
             year_of_study: row.year_of_study,
             phone: row.phone,
+            college_email: row.college_email,
+            personal_email: row.personal_email,
           }));
 
           if (formatted.length === 0) {
