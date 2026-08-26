@@ -1,0 +1,6 @@
+{
+  "name": "CHIPSET Pass & QR Verification System",
+  "description": "Yellow-themed personalized invitation pass generator with official Chipset logo branding in every card image, cryptographically secure QR verification, live scanner, and anti-duplicate check-in protection.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
