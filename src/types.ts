@@ -1,4 +1,4 @@
-export type SelectionStatus = 'SELECTED' | 'WAITLISTED' | 'REJECTED';
+export type SelectionStatus = 'SELECTED' | 'WAITLISTED' | 'REJECTED' | 'NOT_SELECTED';
 
 export interface Participant {
   unique_id: string;
@@ -14,6 +14,7 @@ export interface Participant {
   college?: string;
   year_of_study?: string;
   phone?: string;
+  rsvp_status?: 'PENDING' | 'CONFIRMED' | 'DECLINED';
 }
 
 export interface ScanAttemptLog {

@@ -15,6 +15,8 @@ import {
   Activity,
   Eye,
   Sparkles,
+  Shuffle,
+  X,
 } from 'lucide-react';
 import type { Participant, SystemStats, ScanAttemptLog } from '../types';
 import { formatTimestamp } from '../utils/idGenerator';
@@ -47,6 +49,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [drawCount, setDrawCount] = useState(120);
   const [lotteryFeedback, setLotteryFeedback] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
+
+  // Swap candidates state
+  const [swapOriginal, setSwapOriginal] = useState<Participant | null>(null);
+  const [swapSearch, setSwapSearch] = useState('');
+  const [swapping, setSwapping] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -475,6 +482,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <th className="py-3.5 px-4">Email</th>
                   <th className="py-3.5 px-4">Team</th>
                   <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">RSVP</th>
                   <th className="py-3.5 px-4">Checked In</th>
                   <th className="py-3.5 px-4">Check-in Time</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
@@ -525,6 +533,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
                     </td>
 
+                    {/* RSVP */}
+                    <td className="py-3 px-4">
+                      {p.selection_status === 'SELECTED' ? (
+                        p.rsvp_status === 'CONFIRMED' ? (
+                          <span className="px-2 py-0.5 rounded font-black text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            CONFIRMED
+                          </span>
+                        ) : p.rsvp_status === 'DECLINED' ? (
+                          <span className="px-2 py-0.5 rounded font-black text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            DECLINED
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded font-bold text-[9px] bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
+                            PENDING
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+
                     {/* Checked In */}
                     <td className="py-3 px-4">
                       {p.checked_in ? (
@@ -553,6 +582,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
+                        {p.selection_status === 'SELECTED' && (
+                          <button
+                            onClick={() => {
+                              setSwapOriginal(p);
+                              setSwapSearch('');
+                            }}
+                            className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 transition cursor-pointer"
+                            title="Swap selected candidate with waiting candidate"
+                          >
+                            <Shuffle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleToggleCheckIn(p)}
                           className={`px-2.5 py-1 rounded-xl text-[11px] font-black transition cursor-pointer ${
@@ -863,6 +904,139 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
                 {lotteryFeedback}
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* SWAP CANDIDATE MODAL */}
+      {swapOriginal && (() => {
+        // Filter out non-selected candidates that match swapSearch
+        const replacements = participants.filter((p) => {
+          if (p.selection_status === 'SELECTED') return false;
+          
+          const q = swapSearch.toLowerCase().trim();
+          if (!q) return true;
+          
+          return (
+            p.name.toLowerCase().includes(q) ||
+            p.email.toLowerCase().includes(q) ||
+            p.unique_id.toLowerCase().includes(q) ||
+            (p.college && p.college.toLowerCase().includes(q))
+          );
+        });
+
+        const handleConfirmSwap = async (replacement: Participant) => {
+          if (!confirm(`Are you sure you want to swap selected seat from ${swapOriginal.name} to ${replacement.name}?`)) {
+            return;
+          }
+
+          setSwapping(true);
+          try {
+            const res = await fetch('/api/participants/swap', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                original_id: swapOriginal.unique_id,
+                new_id: replacement.unique_id
+              })
+            });
+
+            if (res.ok) {
+              setSwapOriginal(null);
+              onRefresh();
+            } else {
+              const data = await res.json();
+              alert(data.message || 'Swap operation failed.');
+            }
+          } catch (err) {
+            console.error('Swap request error:', err);
+            alert('Failed to process swap request.');
+          } finally {
+            setSwapping(false);
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#0e0d14] border-2 border-amber-500/30 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative space-y-6">
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setSwapOriginal(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-amber-500/20 text-slate-400 hover:text-amber-400 cursor-pointer transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                  <Shuffle className="w-5 h-5 text-amber-400" />
+                  Swap Candidate Seat
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Swap the selected seat of <strong className="text-amber-400">{swapOriginal.name}</strong> ({swapOriginal.unique_id}) with a participant from the waitlist/pool.
+                </p>
+              </div>
+
+              {/* Original Participant Status Warning */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-[11px] text-slate-300 flex flex-col gap-1">
+                <div>
+                  <span className="font-semibold text-slate-400">Current Seat Holder:</span> {swapOriginal.name} ({swapOriginal.email})
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-400">RSVP Status:</span>{' '}
+                  {swapOriginal.rsvp_status === 'CONFIRMED' ? (
+                    <span className="text-emerald-400 font-bold">Confirmed</span>
+                  ) : swapOriginal.rsvp_status === 'DECLINED' ? (
+                    <span className="text-rose-400 font-bold">Declined</span>
+                  ) : (
+                    <span className="text-amber-400 font-bold">Pending RSVP</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Search waiting list */}
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-amber-400">Search Replacements</label>
+                <input
+                  type="text"
+                  placeholder="Filter by name, email, college..."
+                  value={swapSearch}
+                  onChange={(e) => setSwapSearch(e.target.value)}
+                  className="w-full px-3 py-2 bg-black/50 border border-amber-500/30 text-xs rounded-xl text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              {/* Replacement Candidates List */}
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-bold text-amber-400 block">Available Candidates ({replacements.length})</span>
+                <div className="max-h-48 overflow-y-auto divide-y divide-amber-500/10 border border-amber-500/20 rounded-2xl bg-black/35">
+                  {replacements.length === 0 ? (
+                    <p className="p-4 text-xs text-center text-slate-500 font-mono">No matching waiting candidates found.</p>
+                  ) : (
+                    replacements.map((r) => (
+                      <div key={r.unique_id} className="p-3 flex items-center justify-between hover:bg-amber-500/5 transition-colors">
+                        <div className="min-w-0 pr-4">
+                          <p className="text-xs font-bold text-white truncate">{r.name}</p>
+                          <p className="text-[10px] font-mono text-slate-400 truncate">{r.email}</p>
+                          <p className="text-[9px] text-amber-400/80 truncate">
+                            {r.college || 'Unknown College'} • {r.year_of_study || 'N/A'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleConfirmSwap(r)}
+                          disabled={swapping}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                        >
+                          Swap In
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         );
       })()}

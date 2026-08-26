@@ -323,6 +323,72 @@ app.post('/api/checkin/undo/:unique_id', (req, res) => {
     participant
   });
 });
+// 5.5. RSVP Endpoint (Participant confirmation)
+app.post('/api/rsvp/:unique_id', (req, res) => {
+  const unique_id = req.params.unique_id.trim().toUpperCase();
+  const { status } = req.body;
+  const participant = db.participants[unique_id];
+
+  if (!participant) {
+    return res.status(404).json({ success: false, message: 'Invitation not found' });
+  }
+
+  if (participant.selection_status !== 'SELECTED') {
+    return res.status(400).json({ success: false, message: 'Only selected candidates can RSVP.' });
+  }
+
+  if (status !== 'CONFIRMED' && status !== 'DECLINED') {
+    return res.status(400).json({ success: false, message: 'Invalid RSVP status. Must be CONFIRMED or DECLINED.' });
+  }
+
+  participant.rsvp_status = status;
+  saveDatabase();
+
+  res.json({
+    success: true,
+    message: `RSVP status updated to ${status} for ${participant.name}.`,
+    participant: {
+      unique_id: participant.unique_id,
+      name: participant.name,
+      rsvp_status: participant.rsvp_status
+    }
+  });
+});
+
+// 5.6. Swap Candidates Endpoint (Admin action)
+app.post('/api/participants/swap', (req, res) => {
+  const { original_id, new_id } = req.body;
+  const original = db.participants[String(original_id).trim().toUpperCase()];
+  const replacement = db.participants[String(new_id).trim().toUpperCase()];
+
+  if (!original || !replacement) {
+    return res.status(404).json({ success: false, message: 'One or both participants not found.' });
+  }
+
+  if (original.selection_status !== 'SELECTED') {
+    return res.status(400).json({ success: false, message: 'The candidate to swap out must be currently SELECTED.' });
+  }
+
+  if (replacement.selection_status === 'SELECTED') {
+    return res.status(400).json({ success: false, message: 'The replacement candidate must not be currently SELECTED.' });
+  }
+
+  // Perform Swap
+  original.selection_status = 'NOT_SELECTED' as any;
+  original.rsvp_status = undefined;
+
+  replacement.selection_status = 'SELECTED' as any;
+  replacement.rsvp_status = 'PENDING';
+
+  saveDatabase();
+
+  res.json({
+    success: true,
+    message: `Successfully swapped selected seat from ${original.name} to ${replacement.name}.`,
+    original: { unique_id: original.unique_id, name: original.name, selection_status: original.selection_status },
+    replacement: { unique_id: replacement.unique_id, name: replacement.name, selection_status: replacement.selection_status }
+  });
+});
 
 // 6. Bulk Ingest participants (CSV / Excel import)
 app.post('/api/participants/bulk', (req, res) => {
@@ -377,7 +443,8 @@ app.post('/api/participants/bulk', (req, res) => {
         last_verified_at: null,
         college: cleanCollege,
         year_of_study: cleanYear,
-        phone: cleanPhone
+        phone: cleanPhone,
+        rsvp_status: cleanStatus === 'SELECTED' ? 'PENDING' : undefined
       };
       db.participants[id] = newP;
       existingEmails.set(cleanEmail, newP);

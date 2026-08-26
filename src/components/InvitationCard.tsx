@@ -21,6 +21,30 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [rsvpStatus, setRsvpStatus] = useState<'PENDING' | 'CONFIRMED' | 'DECLINED'>(participant.rsvp_status || 'PENDING');
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+
+  const handleRsvp = async (status: 'CONFIRMED' | 'DECLINED') => {
+    try {
+      setRsvpLoading(true);
+      const res = await fetch(`/api/rsvp/${participant.unique_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setRsvpStatus(status);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'RSVP update failed.');
+      }
+    } catch (err) {
+      console.error('RSVP submission error:', err);
+      alert('Network error submitting RSVP.');
+    } finally {
+      setRsvpLoading(false);
+    }
+  };
 
   // Verification URL - contains only the unique ID (no sensitive PII inside QR)
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://chipset.community';
@@ -182,6 +206,55 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* RSVP Response Panel */}
+      {participant.selection_status === 'SELECTED' && (
+        <div className="w-full max-w-[390px] mt-4 p-4 rounded-2xl bg-[#0e0d14]/85 border border-amber-500/30 backdrop-blur-md text-center space-y-3 no-print">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">RSVP Confirmation</span>
+            {rsvpStatus === 'CONFIRMED' ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                Seat Confirmed
+              </span>
+            ) : rsvpStatus === 'DECLINED' ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                Not Attending
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                Pending Response
+              </span>
+            )}
+          </div>
+
+          {rsvpStatus === 'PENDING' ? (
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => handleRsvp('CONFIRMED')}
+                disabled={rsvpLoading}
+                className="flex-1 py-2 text-xs font-black rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Confirm Attendance
+              </button>
+              <button
+                onClick={() => handleRsvp('DECLINED')}
+                disabled={rsvpLoading}
+                className="py-2 px-4 text-xs font-bold rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Decline
+              </button>
+            </div>
+          ) : rsvpStatus === 'CONFIRMED' ? (
+            <p className="text-[11px] text-slate-400 leading-relaxed text-left">
+              🎉 Your seat is confirmed! Please present this pass with the QR code at the registration desk. If your availability changes, you can still <button onClick={() => handleRsvp('DECLINED')} className="text-rose-400 underline hover:text-rose-300 bg-transparent border-none cursor-pointer p-0 text-[11px] font-bold">Decline Seat</button> to free it.
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-400 leading-relaxed text-left">
+              You marked that you will not be attending. Your seat is now released for other candidates. If you changed your mind, you can still <button onClick={() => handleRsvp('CONFIRMED')} className="text-emerald-400 underline hover:text-emerald-300 bg-transparent border-none cursor-pointer p-0 text-[11px] font-bold">Confirm Seat</button>.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Action Toolbar underneath Card */}
       {!compact && (
