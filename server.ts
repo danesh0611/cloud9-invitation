@@ -12,8 +12,9 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-// Database state stored in memory with file persistence
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Database state stored in memory with file persistence.
+// Supports Render Persistent Disk mounted at /data, falling back to local process directory.
+const DATA_DIR = fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 interface DatabaseSchema {
