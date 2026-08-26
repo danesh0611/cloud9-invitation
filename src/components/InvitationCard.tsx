@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail, Calendar, MapPin, Clock, DoorOpen } from 'lucide-react';
+import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail, Calendar, MapPin, Clock, DoorOpen, User, Plane } from 'lucide-react';
 import type { Participant } from '../types';
 import { ChipsetLogo } from './ChipsetLogo';
 
@@ -140,174 +140,137 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
       <div
         ref={cardRef}
         id={`invitation-card-${participant.unique_id}`}
-        className="relative w-full rounded-3xl overflow-hidden transition-all duration-300 bg-gradient-to-b from-[#121118] via-[#0a090d] to-[#040406] text-white border-2 border-amber-500/40 shadow-2xl shadow-amber-950/40 p-1"
+        className="relative w-full aspect-[1100/500] rounded-3xl overflow-hidden shadow-2xl shadow-black/80 bg-gradient-to-b from-[#121118] via-[#0a090d] to-[#040406] text-white border-2 border-amber-500/40 p-0.5 @container"
+        style={{ containerType: 'inline-size' }}
       >
-        <div className="flex flex-col md:flex-row w-full min-h-[380px]">
+        <div className="flex w-full h-full">
           
-          {/* LEFT PANEL: MAIN TICKET */}
-          <div className="relative flex-1 p-6 sm:p-7 flex flex-col justify-between border-b md:border-b-0 md:border-r border-dashed border-amber-500/35 bg-black/40">
-            {/* Ambient glows and map graphics */}
-            <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-40 h-40 bg-rose-500/10 rounded-full blur-[80px] pointer-events-none" />
-            
-            {/* Header logos */}
-            <div className="relative z-10 flex items-center justify-between">
-              <ChipsetLogo size="sm" theme="dark" variant="full" />
-              <div className="flex items-center gap-1.5 font-mono text-[9px] font-black tracking-widest text-slate-300 bg-slate-900/60 border border-slate-700/50 px-3 py-1 rounded-md">
-                <span className="text-[#4285F4]">G</span>
-                <span className="text-[#EA4335]">o</span>
-                <span className="text-[#FBBC05]">o</span>
-                <span className="text-[#4285F4]">g</span>
-                <span className="text-[#34A853]">l</span>
-                <span className="text-[#EA4335]">e</span>
-                <span className="text-slate-400 font-normal">×</span>
-                <span className="text-amber-400">CHIPSET</span>
-              </div>
-            </div>
-
-            {/* Neon centerpiece */}
-            <div className="relative z-10 text-center my-6 space-y-1.5">
-              <h2 className="text-[#5ae0ff] font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_10px_rgba(90,224,255,0.75)] animate-pulse flex items-center justify-center gap-2">
-                CONGRATULATIONS! <span className="text-sky-400">✈️</span>
-              </h2>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                You've been cleared for
-              </p>
-              <h1 className="text-4xl sm:text-5xl font-black tracking-[0.2em] text-white uppercase bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400">
-                CLOUD9
-              </h1>
-            </div>
-
-            {/* Bottom metadata panel */}
-            <div className="relative z-10 flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
-              <div className="grid grid-cols-4 gap-2 flex-1 text-left">
-                {/* Date */}
-                <div className="space-y-1">
-                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5 text-[#4285F4]" /> Date
-                  </span>
-                  <span className="text-xl font-black text-[#4285F4] block font-mono leading-none">29</span>
-                  <span className="text-[7.5px] uppercase font-bold text-sky-400 block leading-none">August 2026</span>
-                </div>
-                
-                {/* Destination */}
-                <div className="space-y-1">
-                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
-                    <MapPin className="w-2.5 h-2.5 text-[#EA4335]" /> Destination
-                  </span>
-                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">Gallery</span>
-                  <span className="text-[9px] font-black text-[#EA4335] block uppercase leading-none">Hall 1</span>
-                </div>
-
-                {/* Boarding Time */}
-                <div className="space-y-1">
-                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
-                    <Clock className="w-2.5 h-2.5 text-white" /> Boarding
-                  </span>
-                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">9 AM</span>
-                  <span className="text-[8px] font-black text-sky-400 block uppercase leading-none">Onwards</span>
-                </div>
-
-                {/* Gate */}
-                <div className="space-y-1">
-                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
-                    <DoorOpen className="w-2.5 h-2.5 text-[#FBBC05]" /> Gate
-                  </span>
-                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">Block</span>
-                  <span className="text-[9px] font-black text-[#FBBC05] block uppercase leading-none">5</span>
-                </div>
-              </div>
-
-              {/* QR Code */}
-              <div className="flex flex-col items-center shrink-0">
-                <div className="bg-white p-1 rounded-lg border border-amber-500/20">
-                  <QRCodeSVG
-                    value={verifyUrl}
-                    size={65}
-                    level="H"
-                    includeMargin={false}
-                    fgColor="#08080C"
-                    bgColor="#FFFFFF"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Custom footer bar */}
-            <div className="w-full border-t border-dashed border-slate-800/80 mt-3 pt-2 flex items-center justify-between text-[8px] text-slate-500 uppercase tracking-widest font-mono">
-              <span className="text-blue-500/80">Google</span>
-              <span className="text-slate-400">CHIPSET</span>
-              <span className="text-red-500/80">Google</span>
+          {/* LEFT PANEL: MAIN TICKET (uses background image template) */}
+          <div 
+            className="h-full relative"
+            style={{
+              width: '70.9%',
+              backgroundImage: 'url("/assets/ticket_bg.png")',
+              backgroundSize: '141% 100%', // Scales template width to cover left panel exactly
+              backgroundPosition: 'left center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            {/* QR Code on Main Card (Left Section) — large enough to scan */}
+            <div 
+              className="absolute bg-white p-[0.8%] rounded-[6%] shadow-lg shadow-black/60 flex items-center justify-center pointer-events-auto"
+              style={{
+                left: '77.5%',
+                top: '62.0%',
+                width: '20.0%',
+                height: '31.2%',
+              }}
+            >
+              <QRCodeSVG
+                value={verifyUrl}
+                size={512}
+                level="H"
+                includeMargin={false}
+                fgColor="#08080C"
+                bgColor="#FFFFFF"
+                className="w-full h-full"
+              />
             </div>
           </div>
 
-          {/* RIGHT PANEL: STUB TICKET */}
-          <div className="w-full md:w-[250px] bg-black/60 p-5 flex flex-col justify-between relative overflow-hidden">
-            {/* Plane watermark */}
-            <div className="absolute -bottom-6 -right-6 text-slate-900/10 text-9xl font-black pointer-events-none select-none">
-              ✈️
+          {/* RIGHT PANEL: STUB TICKET — matches mockup exactly */}
+          <div 
+            className="h-full bg-[#08080C] flex flex-col overflow-hidden border-l border-dashed border-amber-500/35"
+            style={{ width: '29.1%' }}
+          >
+            {/* Blue Header Banner */}
+            <div className="bg-[#1a56db] flex items-center gap-[4%] px-[5%] shrink-0" style={{ padding: '3.5% 5%' }}>
+              <Plane className="text-white shrink-0" style={{ width: '1.5cqw', height: '1.5cqw' }} />
+              <span className="font-black text-white uppercase tracking-widest" style={{ fontSize: '1.05cqw', letterSpacing: '0.1em' }}>BOARDING PASS</span>
             </div>
 
-            {/* Blue Banner */}
-            <div className="bg-[#0f4c9c] text-white flex items-center justify-between px-3.5 py-1.5 rounded-lg border border-blue-500/25">
-              <span className="text-[9px] font-bold uppercase tracking-wider">Boarding Pass</span>
-              <span className="text-xs">✈️</span>
-            </div>
+            {/* Main content: rows on left, vertical barcode on right */}
+            <div className="flex flex-1 min-h-0">
+              {/* Detail rows */}
+              <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Details list */}
-            <div className="my-4 space-y-2.5 text-left relative z-10">
-              <div>
-                <span className="text-[8px] uppercase font-bold text-slate-500 block">Passenger</span>
-                <span className="text-xs font-black text-white uppercase truncate block max-w-full">
-                  {participant.name}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Flight</span>
-                  <span className="text-xs font-black text-amber-400 block font-mono">CLOUD9 ☁️</span>
+                {/* PASSENGER */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>PASSENGER</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <User className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white uppercase truncate" style={{ fontSize: '1.75cqw' }}>{participant.name}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Date</span>
-                  <span className="text-xs font-black text-white block font-mono">29 AUG 2026</span>
-                </div>
-              </div>
-              <div>
-                <span className="text-[8px] uppercase font-bold text-slate-500 block">Destination</span>
-                <span className="text-xs font-black text-white uppercase truncate block max-w-full">
-                  Gallery Hall 1
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Boarding Time</span>
-                  <span className="text-xs font-black text-white block font-mono">9 AM ONWARDS</span>
-                </div>
-                <div>
-                  <span className="text-[8px] uppercase font-bold text-slate-500 block">Gate</span>
-                  <span className="text-[9px] font-black text-yellow-400 leading-tight block uppercase break-words font-sans">
-                    Block V 1st floor near Central Library
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* Stub Footer */}
-            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3 relative z-10">
-              <div className="text-left shrink-0">
-                <span className="text-[7px] text-slate-500 uppercase tracking-widest block font-bold">Chipset Pass</span>
-                <span className="text-[9px] font-black text-[#5ae0ff] block font-mono tracking-widest">{participant.unique_id}</span>
+                {/* FLIGHT */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>FLIGHT</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <Plane className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>CLOUD9 ☁️</span>
+                  </div>
+                </div>
+
+                {/* DATE */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>DATE</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <Calendar className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>29 AUG 2026</span>
+                  </div>
+                </div>
+
+                {/* DESTINATION */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>DESTINATION</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <MapPin className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white uppercase" style={{ fontSize: '1.75cqw' }}>GALLERY HALL 1</span>
+                  </div>
+                </div>
+
+                {/* BOARDING TIME */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>BOARDING TIME</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <Clock className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>9 AM ONWARDS</span>
+                  </div>
+                </div>
+
+                {/* GATE */}
+                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>GATE</span>
+                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                    <DoorOpen className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white uppercase leading-tight" style={{ fontSize: '1.3cqw' }}>BLOCK 5, 1ST FLOOR NEAR CENTRAL LIBRARY</span>
+                  </div>
+                </div>
+
+                {/* Tagline */}
+                <div className="flex items-center gap-[3%] px-[6%] py-[3%] flex-1">
+                  <Plane className="text-[#4d9fff] shrink-0" style={{ width: '1.2cqw', height: '1.2cqw' }} />
+                  <span className="font-bold text-white tracking-widest" style={{ fontSize: '0.7cqw' }}>BUILD . CONNECT . ELEVATE .</span>
+                </div>
               </div>
-              
-              {/* Flex-based barcode representation */}
-              <div className="flex h-7 items-stretch gap-[1.5px] bg-white px-2 py-1 rounded-sm shrink-0 shadow-sm border border-slate-200">
-                {[1, 2, 1, 3, 1, 2, 3, 1, 2, 1, 2, 1, 3].map((w, idx) => (
-                  <div key={idx} className="bg-black" style={{ width: `${w}px` }} />
+
+              {/* Vertical Barcode — right edge */}
+              <div className="bg-white flex flex-col items-center justify-between py-[2%] shrink-0" style={{ width: '2.6cqw', padding: '3% 0' }}>
+                {[2,1,3,1,2,3,1,2,1,3,2,1,3,1,2,1,3,2,1,2,3,1,2,1,3,1,2,3,1,2,1,3,2,1,2,3,1,2].map((h, idx) => (
+                  <div key={idx} className="bg-black" style={{ width: '55%', height: `${h * 1.4}px` }} />
                 ))}
               </div>
             </div>
-          </div>
 
+            {/* Footer black bar */}
+            <div className="bg-[#0a0a0a] border-t border-white/10 flex items-center justify-center shrink-0 px-[3%]" style={{ minHeight: '13%' }}>
+              <p className="font-bold text-white uppercase tracking-widest text-center leading-snug" style={{ fontSize: '0.68cqw' }}>
+                THIS PASS IS YOUR ENTRY TO{' '}
+                <span className="font-black text-[#1a56db] whitespace-nowrap">CLOUD&nbsp;9</span>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       

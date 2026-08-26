@@ -18,181 +18,117 @@ export async function renderInvitationCardToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  // Helper function to wrap text inside canvas
-  function wrapText(
-    c: CanvasRenderingContext2D,
-    text: string,
-    x: number,
-    y: number,
-    maxWidth: number,
-    lineHeight: number
-  ) {
-    const words = text.split(' ');
-    let line = '';
-    let currentY = y;
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
-      const metrics = c.measureText(testLine);
-      const testWidth = metrics.width;
-      if (testWidth > maxWidth && n > 0) {
-        c.fillText(line, x, currentY);
-        line = words[n] + ' ';
-        currentY += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-    c.fillText(line, x, currentY);
-  }
-
-  // 1. Dark Theme Gradient Background
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-  bgGrad.addColorStop(0, '#0d0d12');
-  bgGrad.addColorStop(0.35, '#14120c');
-  bgGrad.addColorStop(0.7, '#1a1408');
-  bgGrad.addColorStop(1, '#08080c');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, width, height);
-
-  // 2. Green & Red Radial Ambient Glows
-  const glowTop = ctx.createRadialGradient(200, 100, 10, 200, 100, 250);
-  glowTop.addColorStop(0, 'rgba(16, 185, 129, 0.12)');
-  glowTop.addColorStop(1, 'rgba(16, 185, 129, 0)');
-  ctx.fillStyle = glowTop;
-  ctx.beginPath();
-  ctx.arc(200, 100, 250, 0, Math.PI * 2);
-  ctx.fill();
-
-  const glowBottom = ctx.createRadialGradient(600, 400, 10, 600, 400, 250);
-  glowBottom.addColorStop(0, 'rgba(239, 68, 68, 0.1)');
-  glowBottom.addColorStop(1, 'rgba(239, 68, 68, 0)');
-  ctx.fillStyle = glowBottom;
-  ctx.beginPath();
-  ctx.arc(600, 400, 250, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 3. Card Outer Border
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
-  ctx.lineWidth = 3;
-  roundRect(ctx, 16, 16, width - 32, height - 32, 28);
-  ctx.stroke();
-
-  // 4. Dashed Separator Line
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 8]);
-  ctx.beginPath();
-  ctx.moveTo(780, 16);
-  ctx.lineTo(780, 484);
-  ctx.stroke();
-  ctx.setLineDash([]); // Reset dash
-
-  // 5. Draw Official CHIPSET Logo on Top Left
-  const logoSvg = getChipsetLogoSvgString({
-    textColor: '#FFFFFF',
-    amberColor: '#F59E0B',
-    width: 220,
-    height: 60,
-  });
-  const logoBlob = new Blob([logoSvg], { type: 'image/svg+xml;charset=utf-8' });
-  const logoUrl = URL.createObjectURL(logoBlob);
-  const logoImg = new Image();
-
+  // 1. Draw Template Background Image
+  const bgImg = new Image();
+  bgImg.src = '/assets/ticket_bg.png';
   await new Promise<void>((resolve, reject) => {
-    logoImg.onload = () => resolve();
-    logoImg.onerror = reject;
-    logoImg.src = logoUrl;
+    bgImg.onload = () => resolve();
+    bgImg.onerror = reject;
   });
+  ctx.drawImage(bgImg, 0, 0, width, height);
 
-  ctx.drawImage(logoImg, 50, 45, 220, 60);
-  URL.revokeObjectURL(logoUrl);
+  // 2. Cover the original right stub of the template image
+  ctx.fillStyle = '#08080C';
+  ctx.fillRect(780, 0, 320, 500);
 
-  // Google X CHIPSET text on the right side of left panel
-  ctx.fillStyle = '#E2E8F0';
-  ctx.font = 'bold 11px monospace';
-  ctx.textAlign = 'right';
-  ctx.fillText('GOOGLE × CHIPSET', 740, 80);
-
-  // 6. Section: Congratulations Centerpiece
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#5ae0ff';
-  ctx.font = 'bold 30px sans-serif';
-  ctx.shadowColor = 'rgba(90, 224, 255, 0.7)';
-  ctx.shadowBlur = 10;
-  ctx.fillText('CONGRATULATIONS! ✈️', 390, 175);
-  ctx.shadowBlur = 0; // Reset shadow
-
-  ctx.fillStyle = '#94A3B8';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillText("YOU'VE BEEN CLEARED FOR", 390, 215);
+  // 3. Draw Blue Banner
+  ctx.fillStyle = '#0f4c9c';
+  roundRect(ctx, 810, 40, 240, 40, 8);
+  ctx.fill();
 
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '900 62px sans-serif';
-  ctx.fillText('CLOUD9', 390, 285);
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('BOARDING PASS', 915, 65);
+  ctx.fillText('✈️', 1030, 65);
 
-  // Bottom Grid Separator
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(50, 345);
-  ctx.lineTo(740, 345);
-  ctx.stroke();
-
-  // Bottom Panel Text Details
   ctx.textAlign = 'left';
-  
-  // Date
+
+  // 4. Draw Details list (No icons)
+  // Passenger
   ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('📅 DATE', 55, 375);
-  ctx.fillStyle = '#4285F4';
-  ctx.font = '900 22px monospace';
-  ctx.fillText('29', 55, 405);
-  ctx.fillStyle = '#5ae0ff';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('AUGUST 2026', 55, 423);
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('PASSENGER', 815, 115);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 20px sans-serif';
+  ctx.fillText(participant.name.toUpperCase(), 815, 142);
+
+  // Flight & Date
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('FLIGHT', 815, 185);
+  ctx.fillStyle = '#F59E0B';
+  ctx.font = '900 15px sans-serif';
+  ctx.fillText('CLOUD9 ☁️', 815, 207);
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('DATE', 940, 185);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 15px sans-serif';
+  ctx.fillText('29 AUG 2026', 940, 207);
 
   // Destination
   ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('📍 DESTINATION', 200, 375);
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('DESTINATION', 815, 250);
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('GALLERY', 200, 400);
-  ctx.fillStyle = '#EA4335';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('HALL 1', 200, 418);
+  ctx.font = '900 15px sans-serif';
+  ctx.fillText('GALLERY HALL 1', 815, 272);
 
-  // Boarding Time
+  // Boarding & Gate
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('BOARDING TIME', 815, 315);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 14px sans-serif';
+  ctx.fillText('9 AM', 815, 335);
+  ctx.fillText('ONWARDS', 815, 353);
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('GATE', 940, 315);
+  ctx.fillStyle = '#FBBF24';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('BLOCK 5, 1ST FLR', 940, 335);
+  ctx.fillText('NEAR CENTRAL LIB', 940, 348);
+
+  // 5. Draw Dotted Separator Line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(810, 385);
+  ctx.lineTo(1050, 385);
+  ctx.stroke();
+
+  // 6. Draw Footer Row: Chipset Pass ID & Barcode
   ctx.fillStyle = '#64748B';
   ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('🕒 BOARDING', 345, 375);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = '900 16px sans-serif';
-  ctx.fillText('9 AM', 345, 400);
+  ctx.fillText('CHIPSET PASS', 815, 415);
   ctx.fillStyle = '#5ae0ff';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('ONWARDS', 345, 418);
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText(`C9-${participant.unique_id}`, 815, 435);
 
-  // Gate
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('🚪 GATE', 490, 375);
+  // Horizontal Barcode
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('BLOCK', 490, 400);
-  ctx.fillStyle = '#FBBC05';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('5', 490, 418);
+  roundRect(ctx, 955, 405, 95, 36, 4);
+  ctx.fill();
 
+  ctx.fillStyle = '#000000';
+  let barX = 960;
+  const hBarcodePattern = [1, 2, 3, 1, 2, 1, 3, 2, 1, 2, 3, 1, 1, 2, 3, 1, 2, 1, 3, 2, 1, 2, 3, 1];
+  hBarcodePattern.forEach((w) => {
+    ctx.fillRect(barX, 409, w * 1.5, 28);
+    barX += (w * 1.5) + 2;
+  });
 
-
-  // 7. QR Code rendering
+  // 3. Overlay Dynamic QR Code on Main Card
   const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
     errorCorrectionLevel: 'H',
-    margin: 2,
-    width: 160,
+    margin: 1,
+    width: 256,
     color: {
       dark: '#08080C',
       light: '#FFFFFF',
@@ -206,117 +142,12 @@ export async function renderInvitationCardToCanvas(
     qrImg.src = qrDataUrl;
   });
 
+  // White background block with rounded corners matching the UI SVG
   ctx.fillStyle = '#FFFFFF';
-  roundRect(ctx, 655, 360, 85, 85, 12);
-  ctx.fill();
-  ctx.drawImage(qrImg, 660, 365, 75, 75);
-
-  // Left Footer
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(50, 455);
-  ctx.lineTo(740, 455);
-  ctx.stroke();
-
-  ctx.fillStyle = '#475569';
-  ctx.font = 'bold 8px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('GOOGLE', 55, 475);
-  ctx.textAlign = 'center';
-  ctx.fillText('CHIPSET COMMUNITY', 390, 475);
-  ctx.textAlign = 'right';
-  ctx.fillText('GOOGLE', 740, 475);
-
-
-  // --- RIGHT PANEL: STUB TICKET ---
-  // Blue banner
-  ctx.fillStyle = '#0f4c9c';
-  roundRect(ctx, 810, 40, 240, 40, 10);
+  roundRect(ctx, 648, 358, 92, 92, 6);
   ctx.fill();
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('BOARDING PASS', 930, 65);
-
-  ctx.textAlign = 'left';
-  
-  // Passenger
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('PASSENGER', 815, 110);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText(participant.name.toUpperCase(), 815, 130);
-
-  // Flight & Date
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('FLIGHT', 815, 165);
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText('CLOUD9 ☁️', 815, 185);
-
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('DATE', 940, 165);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText('29 AUG 2026', 940, 185);
-
-  // Destination
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('DESTINATION', 815, 220);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText('GALLERY HALL 1', 815, 240);
-
-  // Boarding Time & Gate
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('BOARDING TIME', 815, 275);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('9 AM ONWARDS', 815, 295);
-
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 8px sans-serif';
-  ctx.fillText('GATE', 940, 275);
-  ctx.fillStyle = '#FBBF24';
-  ctx.font = 'bold 8px sans-serif';
-  wrapText(ctx, 'Block V 1st floor near Central Library', 940, 295, 110, 10);
-
-  // Stub Divider
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(810, 360);
-  ctx.lineTo(1050, 360);
-  ctx.stroke();
-
-  // Stub Footer Info
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 7px sans-serif';
-  ctx.fillText('CHIPSET PASS', 815, 385);
-  ctx.fillStyle = '#5ae0ff';
-  ctx.font = 'bold 10px monospace';
-  ctx.fillText(participant.unique_id, 815, 410);
-
-  // Draw Barcode Box
-  ctx.fillStyle = '#FFFFFF';
-  roundRect(ctx, 930, 375, 120, 50, 6);
-  ctx.fill();
-
-  // Draw Barcode Stripes
-  ctx.fillStyle = '#000000';
-  let barX = 940;
-  const barPattern = [1, 2, 1, 3, 1, 2, 3, 1, 2, 1, 2, 1, 3];
-  barPattern.forEach((w) => {
-    ctx.fillRect(barX, 383, w * 2, 34);
-    barX += (w * 2) + 3;
-  });
+  ctx.drawImage(qrImg, 651, 361, 86, 86);
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
