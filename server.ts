@@ -14,22 +14,35 @@ import pg from 'pg';
 import dns from 'dns';
 const { Pool } = pg;
 
-// Globally override dns.lookup to force IPv4 (family: 4) resolution.
-// This is necessary because Render's build/run environment lacks IPv6 outbound connectivity,
-// causing connection attempts to Supabase's dual-stack hosts to crash with ENETUNREACH.
-const originalLookup = dns.lookup;
-dns.lookup = function (hostname: any, options: any, callback: any) {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
+// Resolves the hostname in the DATABASE_URL to an IPv4 IP address at startup.
+// This prevents ENETUNREACH errors (Render lacks IPv6 routing) and ENOTFOUND DNS lookup failures.
+async function getIpv4ConnectionString(urlStr: string): Promise<string> {
+  try {
+    const parsedUrl = new URL(urlStr);
+    const hostname = parsedUrl.hostname;
+    
+    // Skip resolution if it's already an IP address or localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || /^[0-9.]+$/.test(hostname)) {
+      return urlStr;
+    }
+
+    const ips = await new Promise<string[]>((resolve, reject) => {
+      dns.resolve4(hostname, (err, addresses) => {
+        if (err) reject(err);
+        else resolve(addresses);
+      });
+    });
+
+    if (ips && ips.length > 0) {
+      parsedUrl.hostname = ips[0];
+      console.log(`[DB] Successfully resolved hostname ${hostname} to IPv4: ${ips[0]}`);
+      return parsedUrl.toString();
+    }
+  } catch (err: any) {
+    console.error('[DB] Failed to resolve hostname to IPv4, using original URL:', err.message);
   }
-  options = options || {};
-  if (typeof options === 'number') {
-    options = { family: options };
-  }
-  options.family = 4; // Force IPv4
-  return originalLookup.call(dns, hostname, options, callback);
-} as any;
+  return urlStr;
+}
 
 const app = express();
 const PORT = 3000;
@@ -68,13 +81,8 @@ let db: DatabaseSchema = {
   logs: []
 };
 
-// PostgreSQL cloud database connection pool
-const pool = process.env.DATABASE_URL
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // Required for secure cloud db hosts like Supabase/Neon
-    })
-  : null;
+// PostgreSQL cloud database connection pool (initialized asynchronously in bootstrapDb)
+let pool: any = null;
 
 // Initialize database schema in cloud if not exists
 async function initDb() {
@@ -195,6 +203,18 @@ async function seedInitial120() {
 
 // Bootstrap database connection
 async function bootstrapDb() {
+  if (process.env.DATABASE_URL) {
+    try {
+      const ipv4ConnectionString = await getIpv4ConnectionString(process.env.DATABASE_URL);
+      pool = new Pool({
+        connectionString: ipv4ConnectionString,
+        ssl: { rejectUnauthorized: false } // Required for secure cloud db hosts like Supabase/Neon
+      });
+    } catch (err: any) {
+      console.error('[DB] Failed to initialize connection pool:', err.message);
+    }
+  }
+
   await initDb();
   await loadDatabase();
 }
