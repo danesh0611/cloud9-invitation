@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail } from 'lucide-react';
+import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail, Calendar, MapPin, Clock, DoorOpen } from 'lucide-react';
 import type { Participant } from '../types';
 import { ChipsetLogo } from './ChipsetLogo';
 
@@ -167,8 +167,8 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
 
             {/* Neon centerpiece */}
             <div className="relative z-10 text-center my-6 space-y-1.5">
-              <h2 className="text-[#5ae0ff] font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_10px_rgba(90,224,255,0.75)] animate-pulse">
-                CONGRATULATIONS!
+              <h2 className="text-[#5ae0ff] font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_10px_rgba(90,224,255,0.75)] animate-pulse flex items-center justify-center gap-2">
+                CONGRATULATIONS! <span className="text-sky-400">✈️</span>
               </h2>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                 You've been cleared for
@@ -180,34 +180,50 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
 
             {/* Bottom metadata panel */}
             <div className="relative z-10 flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
-              <div className="grid grid-cols-3 gap-2.5 flex-1 text-left">
+              <div className="grid grid-cols-4 gap-2 flex-1 text-left">
                 {/* Date */}
                 <div className="space-y-1">
-                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Date</span>
-                  <span className="text-sm font-black text-white block font-mono">29</span>
-                  <span className="text-[9px] uppercase font-bold text-[#5ae0ff] block">August 2026</span>
+                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
+                    <Calendar className="w-2.5 h-2.5 text-[#4285F4]" /> Date
+                  </span>
+                  <span className="text-xl font-black text-[#4285F4] block font-mono leading-none">29</span>
+                  <span className="text-[7.5px] uppercase font-bold text-sky-400 block leading-none">August 2026</span>
                 </div>
                 
                 {/* Destination */}
                 <div className="space-y-1">
-                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Destination</span>
-                  <span className="text-[9px] font-black text-rose-400 uppercase leading-tight block">Gallery Hall 1</span>
+                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5 text-[#EA4335]" /> Destination
+                  </span>
+                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">Gallery</span>
+                  <span className="text-[9px] font-black text-[#EA4335] block uppercase leading-none">Hall 1</span>
                 </div>
 
                 {/* Boarding Time */}
                 <div className="space-y-1">
-                  <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider block">Boarding Time</span>
-                  <span className="text-xs font-black text-white block font-mono">9 AM</span>
-                  <span className="text-[9px] uppercase font-bold text-[#5ae0ff] block">ONWARDS</span>
+                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5 text-white" /> Boarding
+                  </span>
+                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">9 AM</span>
+                  <span className="text-[8px] font-black text-sky-400 block uppercase leading-none">Onwards</span>
+                </div>
+
+                {/* Gate */}
+                <div className="space-y-1">
+                  <span className="text-[7px] uppercase font-black text-slate-500 tracking-wider flex items-center gap-1">
+                    <DoorOpen className="w-2.5 h-2.5 text-[#FBBC05]" /> Gate
+                  </span>
+                  <span className="text-[9px] font-black text-white block uppercase leading-none mt-1">Block</span>
+                  <span className="text-[9px] font-black text-[#FBBC05] block uppercase leading-none">5</span>
                 </div>
               </div>
 
               {/* QR Code */}
               <div className="flex flex-col items-center shrink-0">
-                <div className="bg-white p-2 rounded-xl border border-amber-500/20">
+                <div className="bg-white p-1 rounded-lg border border-amber-500/20">
                   <QRCodeSVG
                     value={verifyUrl}
-                    size={75}
+                    size={65}
                     level="H"
                     includeMargin={false}
                     fgColor="#08080C"

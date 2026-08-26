@@ -119,7 +119,7 @@ export async function renderInvitationCardToCanvas(
   ctx.font = 'bold 30px sans-serif';
   ctx.shadowColor = 'rgba(90, 224, 255, 0.7)';
   ctx.shadowBlur = 10;
-  ctx.fillText('CONGRATULATIONS!', 390, 175);
+  ctx.fillText('CONGRATULATIONS! ✈️', 390, 175);
   ctx.shadowBlur = 0; // Reset shadow
 
   ctx.fillStyle = '#94A3B8';
@@ -144,8 +144,8 @@ export async function renderInvitationCardToCanvas(
   // Date
   ctx.fillStyle = '#64748B';
   ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('DATE', 55, 375);
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('📅 DATE', 55, 375);
+  ctx.fillStyle = '#4285F4';
   ctx.font = '900 22px monospace';
   ctx.fillText('29', 55, 405);
   ctx.fillStyle = '#5ae0ff';
@@ -155,21 +155,35 @@ export async function renderInvitationCardToCanvas(
   // Destination
   ctx.fillStyle = '#64748B';
   ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('DESTINATION', 190, 375);
-  ctx.fillStyle = '#F87171';
+  ctx.fillText('📍 DESTINATION', 200, 375);
+  ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('GALLERY HALL 1', 190, 405);
+  ctx.fillText('GALLERY', 200, 400);
+  ctx.fillStyle = '#EA4335';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('HALL 1', 200, 418);
 
   // Boarding Time
   ctx.fillStyle = '#64748B';
   ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('BOARDING TIME', 335, 375);
+  ctx.fillText('🕒 BOARDING', 345, 375);
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '900 16px sans-serif';
-  ctx.fillText('9 AM', 335, 402);
+  ctx.fillText('9 AM', 345, 400);
   ctx.fillStyle = '#5ae0ff';
   ctx.font = 'bold 9px sans-serif';
-  ctx.fillText('ONWARDS', 335, 420);
+  ctx.fillText('ONWARDS', 345, 418);
+
+  // Gate
+  ctx.fillStyle = '#64748B';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('🚪 GATE', 490, 375);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('BLOCK', 490, 400);
+  ctx.fillStyle = '#FBBC05';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('5', 490, 418);
 
 
 
