@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { Download, Share2, Check, Printer, ShieldCheck, Sparkles, ExternalLink, Mail, Calendar, MapPin, Clock, DoorOpen, User, Plane } from 'lucide-react';
 import type { Participant } from '../types';
 import { ChipsetLogo } from './ChipsetLogo';
+import { renderInvitationCardToCanvas } from '../utils/bulkExport';
 
 interface InvitationCardProps {
   participant: Participant;
@@ -51,27 +52,21 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
   const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
 
   const handleDownloadPng = async () => {
-    if (!cardRef.current) return;
     try {
       setDownloading(true);
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#08080C',
-        logging: false,
-      });
-      const dataUrl = canvas.toDataURL('image/png');
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const blob = await renderInvitationCardToCanvas(participant, baseUrl);
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `Cloud9-Pass-${participant.name.replace(/\s+/g, '_')}.png`;
-      link.href = dataUrl;
-      // Append to body for Firefox/mobile compatibility
+      link.href = url;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.error('Failed to download card PNG:', err);
-      alert('Download failed. Please take a screenshot of your pass instead and show it at the entry.');
+      alert('Download failed. Please take a screenshot of your pass and show it at the entry.');
     } finally {
       setDownloading(false);
     }
