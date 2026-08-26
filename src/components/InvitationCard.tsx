@@ -191,68 +191,63 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
 
             {/* Main content: rows on left, vertical barcode on right */}
             <div className="flex flex-1 min-h-0">
-              {/* Detail rows */}
-              <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Detail rows — each takes equal share of available height */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
                 {/* PASSENGER */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>PASSENGER</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>PASSENGER</span>
+                  <div className="flex items-center gap-[3%] mt-[1%]">
                     <User className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
                     <span className="font-black text-white uppercase truncate" style={{ fontSize: '1.75cqw' }}>{participant.name}</span>
                   </div>
                 </div>
 
                 {/* FLIGHT */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>FLIGHT</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>FLIGHT</span>
+                  <div className="flex items-center gap-[3%] mt-[1%]">
                     <Plane className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
                     <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>CLOUD9 ☁️</span>
                   </div>
                 </div>
 
                 {/* DATE */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>DATE</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>DATE</span>
+                  <div className="flex items-center gap-[3%] mt-[1%]">
                     <Calendar className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
                     <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>29 AUG 2026</span>
                   </div>
                 </div>
 
                 {/* DESTINATION */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>DESTINATION</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>DESTINATION</span>
+                  <div className="flex items-center gap-[3%] mt-[1%]">
                     <MapPin className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
-                    <span className="font-black text-white uppercase" style={{ fontSize: '1.75cqw' }}>GALLERY HALL 1</span>
+                    <span className="font-black text-white uppercase truncate" style={{ fontSize: '1.75cqw' }}>GALLERY HALL 1</span>
                   </div>
                 </div>
 
                 {/* BOARDING TIME */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>BOARDING TIME</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>BOARDING TIME</span>
+                  <div className="flex items-center gap-[3%] mt-[1%]">
                     <Clock className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
                     <span className="font-black text-white" style={{ fontSize: '1.75cqw' }}>9 AM ONWARDS</span>
                   </div>
                 </div>
 
                 {/* GATE */}
-                <div className="px-[6%] py-[3.5%] border-b border-dashed border-white/10 flex flex-col justify-center">
-                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest block" style={{ fontSize: '0.7cqw' }}>GATE</span>
-                  <div className="flex items-center gap-[3%] mt-[1.5%]">
-                    <DoorOpen className="text-white shrink-0" style={{ width: '1.6cqw', height: '1.6cqw' }} />
-                    <span className="font-black text-white uppercase leading-tight" style={{ fontSize: '1.3cqw' }}>BLOCK 5, 1ST FLOOR NEAR CENTRAL LIBRARY</span>
+                <div className="flex-1 px-[6%] border-b border-dashed border-white/10 flex flex-col justify-center overflow-hidden min-h-0">
+                  <span className="font-bold text-[#4d9fff] uppercase tracking-widest leading-none" style={{ fontSize: '0.7cqw' }}>GATE</span>
+                  <div className="flex items-start gap-[3%] mt-[1%]">
+                    <DoorOpen className="text-white shrink-0 mt-[0.1cqw]" style={{ width: '1.6cqw', height: '1.6cqw' }} />
+                    <span className="font-black text-white uppercase leading-tight" style={{ fontSize: '1.1cqw' }}>BLOCK 5, 1ST FLOOR NEAR CENTRAL LIBRARY</span>
                   </div>
                 </div>
 
-                {/* Tagline */}
-                <div className="flex items-center gap-[3%] px-[6%] py-[3%] flex-1">
-                  <Plane className="text-[#4d9fff] shrink-0" style={{ width: '1.2cqw', height: '1.2cqw' }} />
-                  <span className="font-bold text-white tracking-widest" style={{ fontSize: '0.7cqw' }}>BUILD . CONNECT . ELEVATE .</span>
-                </div>
               </div>
 
               {/* Vertical Barcode — right edge */}
@@ -264,7 +259,7 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
             </div>
 
             {/* Footer black bar */}
-            <div className="bg-[#0a0a0a] border-t border-white/10 flex items-center justify-center shrink-0 px-[3%]" style={{ minHeight: '13%' }}>
+            <div className="bg-[#0a0a0a] border-t border-white/10 flex items-center justify-center shrink-0 px-[3%]" style={{ minHeight: '8%' }}>
               <p className="font-bold text-white uppercase tracking-widest text-center leading-snug" style={{ fontSize: '0.68cqw' }}>
                 THIS PASS IS YOUR ENTRY TO{' '}
                 <span className="font-black text-[#1a56db] whitespace-nowrap">CLOUD&nbsp;9</span>
