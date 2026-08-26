@@ -14,6 +14,23 @@ import pg from 'pg';
 import dns from 'dns';
 const { Pool } = pg;
 
+// Globally override dns.lookup to force IPv4 (family: 4) resolution.
+// This is necessary because Render's build/run environment lacks IPv6 outbound connectivity,
+// causing connection attempts to Supabase's dual-stack hosts to crash with ENETUNREACH.
+const originalLookup = dns.lookup;
+dns.lookup = function (hostname: any, options: any, callback: any) {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  options = options || {};
+  if (typeof options === 'number') {
+    options = { family: options };
+  }
+  options.family = 4; // Force IPv4
+  return originalLookup.call(dns, hostname, options, callback);
+} as any;
+
 const app = express();
 const PORT = 3000;
 
@@ -55,12 +72,8 @@ let db: DatabaseSchema = {
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }, // Required for secure cloud db hosts like Supabase/Neon
-      // Force IPv4 lookup resolution to bypass IPv6 ENETUNREACH network blocks in cloud containers like Render
-      lookup: (hostname: string, options: any, callback: any) => {
-        dns.lookup(hostname, { family: 4 }, callback);
-      }
-    } as any)
+      ssl: { rejectUnauthorized: false } // Required for secure cloud db hosts like Supabase/Neon
+    })
   : null;
 
 // Initialize database schema in cloud if not exists
