@@ -57,15 +57,21 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
       const canvas = await html2canvas(cardRef.current, {
         scale: 3,
         useCORS: true,
-        backgroundColor: null,
+        allowTaint: true,
+        backgroundColor: '#08080C',
+        logging: false,
       });
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `Chipset-Invitation-${participant.name.replace(/\s+/g, '_')}-${participant.unique_id}.png`;
+      link.download = `Cloud9-Pass-${participant.name.replace(/\s+/g, '_')}.png`;
       link.href = dataUrl;
+      // Append to body for Firefox/mobile compatibility
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('Failed to download card PNG:', err);
+      alert('Download failed. Please take a screenshot of your pass instead and show it at the entry.');
     } finally {
       setDownloading(false);
     }
@@ -315,6 +321,23 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
               You marked that you will not be attending. Your seat is now released for other candidates. If you changed your mind, you can still <button onClick={() => handleRsvp('CONFIRMED')} className="text-emerald-400 underline hover:text-emerald-300 bg-transparent border-none cursor-pointer p-0 text-[11px] font-bold">Confirm Seat</button>.
             </p>
           )}
+        </div>
+      )}
+
+      {/* 📲 Download & Show Instruction Banner */}
+      {participant.selection_status === 'SELECTED' && (
+        <div className="w-full max-w-[850px] mt-3 rounded-2xl border border-amber-500/50 bg-amber-500/10 backdrop-blur-md px-4 py-3 no-print">
+          <div className="flex items-start gap-3">
+            <span className="text-xl mt-0.5">📲</span>
+            <div className="text-left">
+              <p className="text-amber-300 font-black text-sm uppercase tracking-wide">Download &amp; Show at Entry</p>
+              <p className="text-amber-200/80 text-xs leading-relaxed mt-0.5">
+                Save your boarding pass as a PNG by tapping <strong className="text-white">Download PNG</strong> below.
+                You <strong className="text-white">must show this pass</strong> (on screen or printed) at the event entry gate —
+                Block 5, 1st Floor near Central Library — on <strong className="text-white">29 Aug 2026</strong>.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
