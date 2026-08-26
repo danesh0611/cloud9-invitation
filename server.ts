@@ -4,8 +4,8 @@ import fs from 'fs';
 import crypto from 'crypto';
 import JSZip from 'jszip';
 import { createServer as createViteServer } from 'vite';
-import { INITIAL_120_PARTICIPANTS } from './src/data/sample120Participants.ts';
-import type { Participant, ScanAttemptLog, SystemStats } from './src/types.ts';
+import { INITIAL_120_PARTICIPANTS } from './src/data/sample120Participants';
+import type { Participant, ScanAttemptLog, SystemStats } from './src/types';
 
 const app = express();
 const PORT = 3000;
