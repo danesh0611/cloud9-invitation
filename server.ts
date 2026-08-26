@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import pg from 'pg';
+import dns from 'dns';
 const { Pool } = pg;
 
 const app = express();
@@ -54,8 +55,12 @@ let db: DatabaseSchema = {
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // Required for secure cloud db hosts like Supabase/Neon
-    })
+      ssl: { rejectUnauthorized: false }, // Required for secure cloud db hosts like Supabase/Neon
+      // Force IPv4 lookup resolution to bypass IPv6 ENETUNREACH network blocks in cloud containers like Render
+      lookup: (hostname: string, options: any, callback: any) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+      }
+    } as any)
   : null;
 
 // Initialize database schema in cloud if not exists
