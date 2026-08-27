@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Download, Search, Sparkles, Filter, CheckCircle2, Layers, RefreshCw, Eye } from 'lucide-react';
+import { Download, Search, Sparkles, Filter, CheckCircle2, Layers, RefreshCw, Eye, Mail } from 'lucide-react';
 import type { Participant } from '../types';
 import { InvitationCard } from './InvitationCard';
 import { ChipsetLogo } from './ChipsetLogo';
 import { generateBulkInvitationsZip } from '../utils/bulkExport';
+import { BulkEmailModal } from './BulkEmailModal';
 
 interface InvitationsViewProps {
   participants: Participant[];
@@ -21,6 +22,7 @@ export const InvitationsView: React.FC<InvitationsViewProps> = ({
   const [theme, setTheme] = useState<'cyber' | 'dark' | 'light'>('cyber');
   const [viewMode, setViewMode] = useState<'grid' | 'spotlight'>('grid');
   const [spotlightIndex, setSpotlightIndex] = useState(0);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Bulk ZIP progress state
   const [isExportingZip, setIsExportingZip] = useState(false);
@@ -102,16 +104,26 @@ export const InvitationsView: React.FC<InvitationsViewProps> = ({
             </p>
           </div>
 
-          {/* Bulk Download Action in Electric Yellow */}
+          {/* Bulk Download & Email Actions in Electric Yellow */}
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              id="btn-bulk-email-all"
+              onClick={() => setIsEmailModalOpen(true)}
+              disabled={selectedParticipants.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm transition-all shadow-xl shadow-amber-500/30 active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <Mail className="w-4 h-4" />
+              <span>Email All ({selectedParticipants.length} Selected)</span>
+            </button>
+
             <button
               id="btn-bulk-download-zip"
               onClick={handleBulkZipDownload}
               disabled={isExportingZip || selectedParticipants.length === 0}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm transition-all shadow-xl shadow-amber-500/25 active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              {isExportingZip ? 'Generating ZIP...' : `Download All ${selectedParticipants.length} Cards (ZIP)`}
+              {isExportingZip ? 'Generating ZIP...' : `Download ZIP (${selectedParticipants.length})`}
             </button>
 
             <button
@@ -308,6 +320,13 @@ export const InvitationsView: React.FC<InvitationsViewProps> = ({
           </button>
         </div>
       )}
+
+      {/* Bulk Email Dispatcher Modal */}
+      <BulkEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        participants={participants}
+      />
     </div>
   );
 };

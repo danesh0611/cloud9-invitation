@@ -18,27 +18,65 @@ export async function renderInvitationCardToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  // ── 1. Left panel: background template image ──────────────────────────────
-  // Fetch as blob first to guarantee it loads in canvas context (avoids relative-path issues)
-  let bgObjectUrl: string | null = null;
-  try {
-    const resp = await fetch('/assets/ticket_bg.png');
-    if (resp.ok) {
-      const imgBlob = await resp.blob();
-      bgObjectUrl = URL.createObjectURL(imgBlob);
-    }
-  } catch (_) { /* silently skip if fetch fails */ }
+  // ── Base Background ───────────────────────────────────────────────────────
+  ctx.fillStyle = '#0a0910';
+  ctx.fillRect(0, 0, W, H);
 
-  if (bgObjectUrl) {
+  // ── 1. Left panel: background template image with fallbacks ────────────────
+  const imgUrl = '/assets/ticket_bg.png';
+  let imageLoaded = false;
+
+  try {
     const bgImg = new Image();
     await new Promise<void>((resolve) => {
-      bgImg.onload = () => resolve();
+      bgImg.onload = () => {
+        ctx.drawImage(bgImg, 0, 0, W, H);
+        imageLoaded = true;
+        resolve();
+      };
       bgImg.onerror = () => resolve();
-      bgImg.src = bgObjectUrl!;
+      bgImg.src = imgUrl;
     });
-    // CSS: backgroundSize '141% 100%' on 780px panel = draw at full 1100×500
-    ctx.drawImage(bgImg, 0, 0, W, H);
-    URL.revokeObjectURL(bgObjectUrl);
+  } catch (_) {
+    // Fallback if direct Image fails
+  }
+
+  if (!imageLoaded) {
+    // Try via fetch blob
+    try {
+      const resp = await fetch(imgUrl);
+      if (resp.ok) {
+        const imgBlob = await resp.blob();
+        const objUrl = URL.createObjectURL(imgBlob);
+        const bgImg = new Image();
+        await new Promise<void>((resolve) => {
+          bgImg.onload = () => {
+            ctx.drawImage(bgImg, 0, 0, W, H);
+            imageLoaded = true;
+            resolve();
+          };
+          bgImg.onerror = () => resolve();
+          bgImg.src = objUrl;
+        });
+        URL.revokeObjectURL(objUrl);
+      }
+    } catch (_) {}
+  }
+
+  // If image still not available, draw rich cyber background
+  if (!imageLoaded) {
+    const grad = ctx.createLinearGradient(0, 0, STUB_X, H);
+    grad.addColorStop(0, '#1a1829');
+    grad.addColorStop(1, '#0e0d16');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, STUB_X, H);
+    
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillText('CLOUD 9', 60, 100);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('OFFICIAL INVITATION PASS', 60, 140);
   }
 
   // ── 2. Right stub panel background ────────────────────────────────────────

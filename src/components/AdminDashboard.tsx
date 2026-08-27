@@ -17,9 +17,11 @@ import {
   Sparkles,
   Shuffle,
   X,
+  Mail,
 } from 'lucide-react';
 import type { Participant, SystemStats, ScanAttemptLog } from '../types';
 import { formatTimestamp } from '../utils/idGenerator';
+import { BulkEmailModal } from './BulkEmailModal';
 
 interface AdminDashboardProps {
   stats: SystemStats;
@@ -54,6 +56,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [swapOriginal, setSwapOriginal] = useState<Participant | null>(null);
   const [swapSearch, setSwapSearch] = useState('');
   const [swapping, setSwapping] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -417,7 +420,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            id="btn-admin-email-all"
+            onClick={() => setIsEmailModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
+          >
+            <Mail className="w-3.5 h-3.5" /> Email All Selected
+          </button>
+
           <button
             id="btn-export-csv-report"
             onClick={handleExportCsvReport}
@@ -429,7 +440,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             id="btn-seed-120"
             onClick={handleResetTo120}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-amber-500/20"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer"
             title="Reset & seed initial 120 participants"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Re-Seed 120
@@ -1046,6 +1057,13 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
           </div>
         );
       })()}
+
+      {/* Bulk Email Modal */}
+      <BulkEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        participants={participants}
+      />
     </div>
   );
 };

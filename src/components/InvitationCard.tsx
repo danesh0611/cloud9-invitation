@@ -54,6 +54,25 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
   const handleDownloadPng = async () => {
     try {
       setDownloading(true);
+      if (cardRef.current) {
+        const canvas = await html2canvas(cardRef.current, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#08080C',
+          logging: false
+        });
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Cloud9-Pass-${participant.name.replace(/\s+/g, '_')}.png`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // Fallback
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
       const blob = await renderInvitationCardToCanvas(participant, baseUrl);
       const url = URL.createObjectURL(blob);
@@ -66,7 +85,20 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.error('Failed to download card PNG:', err);
-      alert('Download failed. Please take a screenshot of your pass and show it at the entry.');
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const blob = await renderInvitationCardToCanvas(participant, baseUrl);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `Cloud9-Pass-${participant.name.replace(/\s+/g, '_')}.png`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      } catch (fallbackErr) {
+        alert('Download failed. Please take a screenshot of your pass and show it at the entry.');
+      }
     } finally {
       setDownloading(false);
     }

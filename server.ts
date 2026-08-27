@@ -10,6 +10,7 @@ import type { Participant, ScanAttemptLog, SystemStats } from './src/types';
 import dotenv from 'dotenv';
 dotenv.config();
 
+import nodemailer from 'nodemailer';
 import pg from 'pg';
 import dns from 'dns';
 const { Pool } = pg;
@@ -614,6 +615,288 @@ app.post('/api/logs/clear', async (req, res) => {
   db.logs = [];
   await saveDatabase();
   res.json({ success: true, message: 'Logs cleared' });
+});
+
+// 10.4. Send Single Test Email
+app.post('/api/email/test', async (req, res) => {
+  try {
+    const { 
+      smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com',
+      smtpPort = Number(process.env.SMTP_PORT) || 465,
+      smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '',
+      smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '',
+      smtpFrom = process.env.SMTP_FROM || `Cloud9 Organizing Team <${smtpUser}>`,
+      testEmail,
+      originUrl
+    } = req.body;
+
+    if (!smtpUser || !smtpPass) {
+      return res.status(400).json({ success: false, message: 'Please provide SMTP / Gmail user and password / app password.' });
+    }
+
+    if (!testEmail) {
+      return res.status(400).json({ success: false, message: 'Please provide a test recipient email address.' });
+    }
+
+    const isGmail = smtpHost.includes('gmail') || smtpUser.includes('@gmail.com');
+    const transporter = nodemailer.createTransport(
+      isGmail
+        ? {
+            service: 'gmail',
+            auth: {
+              user: smtpUser.trim(),
+              pass: smtpPass.trim()
+            }
+          }
+        : {
+            host: smtpHost.trim(),
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser.trim(),
+              pass: smtpPass.trim()
+            }
+          }
+    );
+
+    const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
+    const sampleParticipant = Object.values(db.participants).find(p => p.selection_status === 'SELECTED') || {
+      unique_id: 'C9-SAMPLE',
+      name: 'Sample Candidate'
+    };
+
+    const verifyUrl = `${baseUrl}/verify?id=${sampleParticipant.unique_id}`;
+    const whatsappLink = 'https://chat.whatsapp.com/DcV5YL43n8JDO8OFeAxixt?s=cl&p=a&ilr=4';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #08080C; color: #ffffff; margin: 0; padding: 20px; }
+          .card { max-width: 600px; margin: 0 auto; background: #0e0d14; border: 2px solid #f59e0b; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+          .header { background: #1a56db; padding: 18px 24px; text-align: center; font-weight: 900; letter-spacing: 2px; color: #ffffff; font-size: 16px; text-transform: uppercase; }
+          .content { padding: 28px 24px; }
+          h2 { color: #f59e0b; margin-top: 0; font-size: 22px; }
+          p { color: #cbd5e1; font-size: 14px; line-height: 1.6; }
+          .info-box { background: #16151f; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin: 20px 0; }
+          .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+          .label { color: #94a3b8; font-weight: bold; }
+          .value { color: #f8fafc; font-weight: bold; }
+          .btn-primary { display: inline-block; background: #f59e0b; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
+          .btn-whatsapp { display: inline-block; background: #25D366; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
+          .footer { padding: 16px 24px; background: #050508; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">✈️ CLOUD9 • TEST EMAIL BROADCAST</div>
+          <div class="content">
+            <h2>Congratulations, ${sampleParticipant.name}!</h2>
+            <p>You have been officially selected to attend the exclusive <strong>Cloud9</strong> event organized by the Chipset technical community.</p>
+            
+            <div class="info-box">
+              <div class="info-row"><span class="label">PASSENGER:</span> <span class="value">${sampleParticipant.name}</span></div>
+              <div class="info-row"><span class="label">PASS ID:</span> <span class="value" style="color:#f59e0b;">${sampleParticipant.unique_id}</span></div>
+              <div class="info-row"><span class="label">EVENT DATE:</span> <span class="value">29 August 2026</span></div>
+              <div class="info-row"><span class="label">DESTINATION:</span> <span class="value">Gallery Hall 1</span></div>
+              <div class="info-row"><span class="label">BOARDING TIME:</span> <span class="value">9:00 AM Onwards</span></div>
+              <div class="info-row"><span class="label">VENUE GATE:</span> <span class="value">Block 5, 1st Floor Near Central Library</span></div>
+            </div>
+
+            <p><strong>Action Required:</strong> Please open your invitation pass to RSVP, confirm your attendance, and download your pass to show at entry.</p>
+
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${verifyUrl}" class="btn-primary">🎟️ View Pass & RSVP Seat</a>
+            </div>
+
+            <p style="font-size: 12px; color: #94a3b8;">
+              ⚠️ <em>Important:</em> Show your digital or printed pass QR code at the entry desk on event day.
+            </p>
+          </div>
+          <div class="footer">
+            Cloud9 Organizing Team • Chipset Technical Community<br/>
+            Direct Verification: ${verifyUrl}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: testEmail.trim(),
+      subject: `[TEST] 🎉 You are Selected for Cloud9 Event!`,
+      html: htmlContent
+    });
+
+    return res.json({
+      success: true,
+      message: `Test email sent successfully to ${testEmail}!`
+    });
+  } catch (error: any) {
+    console.error('Test email error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to send test email.' });
+  }
+});
+
+// 10.5. Bulk Email Dispatcher
+app.post('/api/email/bulk-send', async (req, res) => {
+  try {
+    const { 
+      smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com',
+      smtpPort = Number(process.env.SMTP_PORT) || 465,
+      smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '',
+      smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '',
+      smtpFrom = process.env.SMTP_FROM || `Cloud9 Organizing Team <${smtpUser || 'cloud9@chipset.community'}>`,
+      participantIds,
+      subject = '🎉 You are Selected for Cloud9 Event! [Action Required: RSVP to Confirm Seat]',
+      originUrl
+    } = req.body;
+
+    const allSelected = Object.values(db.participants).filter(p => p.selection_status === 'SELECTED');
+    const targets = Array.isArray(participantIds) && participantIds.length > 0
+      ? participantIds.map((id: string) => db.participants[id]).filter(Boolean)
+      : allSelected;
+
+    if (targets.length === 0) {
+      return res.status(400).json({ success: false, message: 'No selected participants to email.' });
+    }
+
+    if (!smtpUser || !smtpPass) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide your email address and 16-character App Password to start automated sending.' 
+      });
+    }
+
+    const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
+
+    const isGmail = smtpHost.includes('gmail') || smtpUser.includes('@gmail.com');
+    const transporter = nodemailer.createTransport(
+      isGmail
+        ? {
+            service: 'gmail',
+            auth: {
+              user: smtpUser.trim(),
+              pass: smtpPass.trim()
+            }
+          }
+        : {
+            host: smtpHost.trim(),
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser.trim(),
+              pass: smtpPass.trim()
+            }
+          }
+    );
+
+    // Verify SMTP connection before starting loop
+    await transporter.verify();
+
+    const results: Array<{ id: string; name: string; email: string; success: boolean; error?: string }> = [];
+
+    for (const participant of targets) {
+      const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
+      const toEmails = [
+        participant.college_email,
+        participant.personal_email,
+        participant.email
+      ].filter(Boolean)
+       .filter((val, idx, self) => self.indexOf(val) === idx);
+
+      const toField = toEmails.join(', ');
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #08080C; color: #ffffff; margin: 0; padding: 20px; }
+            .card { max-width: 600px; margin: 0 auto; background: #0e0d14; border: 2px solid #f59e0b; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+            .header { background: #1a56db; padding: 18px 24px; text-align: center; font-weight: 900; letter-spacing: 2px; color: #ffffff; font-size: 16px; text-transform: uppercase; }
+            .content { padding: 28px 24px; }
+            h2 { color: #f59e0b; margin-top: 0; font-size: 22px; }
+            p { color: #cbd5e1; font-size: 14px; line-height: 1.6; }
+            .info-box { background: #16151f; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin: 20px 0; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+            .label { color: #94a3b8; font-weight: bold; }
+            .value { color: #f8fafc; font-weight: bold; }
+            .btn-primary { display: inline-block; background: #f59e0b; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
+            .btn-whatsapp { display: inline-block; background: #25D366; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
+            .footer { padding: 16px 24px; background: #050508; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #64748b; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="header">✈️ CLOUD9 • OFFICIAL ADMISSION PASS</div>
+            <div class="content">
+              <h2>Congratulations, ${participant.name}!</h2>
+              <p>You have been officially selected to attend the exclusive <strong>Cloud9</strong> event organized by the Chipset technical community.</p>
+              
+              <div class="info-box">
+                <div class="info-row"><span class="label">PASSENGER:</span> <span class="value">${participant.name}</span></div>
+                <div class="info-row"><span class="label">PASS ID:</span> <span class="value" style="color:#f59e0b;">${participant.unique_id}</span></div>
+                <div class="info-row"><span class="label">EVENT DATE:</span> <span class="value">29 August 2026</span></div>
+                <div class="info-row"><span class="label">DESTINATION:</span> <span class="value">Gallery Hall 1</span></div>
+                <div class="info-row"><span class="label">BOARDING TIME:</span> <span class="value">9:00 AM Onwards</span></div>
+                <div class="info-row"><span class="label">VENUE GATE:</span> <span class="value">Block 5, 1st Floor Near Central Library</span></div>
+              </div>
+
+              <p><strong>Action Required:</strong> Please open your invitation pass to RSVP, confirm your attendance, and download your pass to show at entry.</p>
+
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${verifyUrl}" class="btn-primary">🎟️ View Pass & RSVP Seat</a>
+              </div>
+
+              <p style="font-size: 12px; color: #94a3b8;">
+                ⚠️ <em>Important:</em> Show your digital or printed pass QR code at the entry desk on event day.
+              </p>
+            </div>
+            <div class="footer">
+              Cloud9 Organizing Team • Chipset Technical Community<br/>
+              Direct Verification: ${verifyUrl}
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      try {
+        await transporter.sendMail({
+          from: smtpFrom,
+          to: toField,
+          subject: subject,
+          html: htmlContent
+        });
+        results.push({ id: participant.unique_id, name: participant.name, email: toField, success: true });
+      } catch (err: any) {
+        results.push({ id: participant.unique_id, name: participant.name, email: toField, success: false, error: err.message });
+      }
+
+      // Small throttling delay to avoid rate-limiting
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.length - successCount;
+
+    return res.json({
+      success: true,
+      message: `Successfully dispatched personalized emails to ${successCount} candidates (${failCount} failed).`,
+      total: results.length,
+      successCount,
+      failCount,
+      results
+    });
+  } catch (error: any) {
+    console.error('Bulk email dispatch error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Bulk email dispatch failed.' });
+  }
 });
 
 // 11. Download Entire Project Source Code (.ZIP) for local run & GitHub push
