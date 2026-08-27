@@ -47,16 +47,6 @@ export async function renderInvitationCardToCanvas(
   ctx.fillStyle = '#08080C';
   ctx.fillRect(STUB_X, 0, STUB_W, H);
 
-  // Dashed left border on stub
-  ctx.strokeStyle = 'rgba(245,158,11,0.35)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(STUB_X, 0);
-  ctx.lineTo(STUB_X, H);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
   // ── 3. Blue header banner ─────────────────────────────────────────────────
   const HEADER_H = 38;
   ctx.fillStyle = '#1a56db';
@@ -108,7 +98,7 @@ export async function renderInvitationCardToCanvas(
 
     // Dashed separator at bottom of row (except last)
     if (i < NUM_ROWS - 1) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -159,6 +149,16 @@ export async function renderInvitationCardToCanvas(
   ctx.fillStyle = '#1a56db';
   ctx.font = 'bold 9px sans-serif';
   ctx.fillText('CLOUD 9', centerX, FOOTER_Y + 29);
+
+  // ── 6b. White Dashed Perforation Line on Stub Boundary (on top of all layers) ──
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  ctx.moveTo(STUB_X, 0);
+  ctx.lineTo(STUB_X, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
 
   // ── 7. QR code on left panel ───────────────────────────────────────────────
   const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
