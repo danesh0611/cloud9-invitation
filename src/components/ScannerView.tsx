@@ -482,19 +482,39 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
                       <span className="text-[11px] font-mono font-bold tracking-widest text-rose-400 uppercase">
                         Access Denied
                       </span>
-                      <h2 className="text-2xl sm:text-3xl font-black text-rose-400 tracking-tight">
-                        ❌ INVALID INVITATION
+                      <h2 className="text-xl sm:text-2xl font-black text-rose-400 tracking-tight">
+                        {verification.status === 'NOT_SELECTED' ? '⛔ PASS REVOKED / REALLOCATED' : '❌ INVALID INVITATION'}
                       </h2>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/30 text-xs text-rose-200 space-y-1">
-                    <p className="font-bold text-sm text-white">
-                      "This invitation could not be verified."
-                    </p>
-                    <p className="text-slate-400">
-                      Scanned ID <code className="font-mono text-rose-300 font-bold">{scannedId}</code> does not exist in the database.
-                    </p>
+                  <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/30 text-xs text-rose-200 space-y-2">
+                    {verification.status === 'NOT_SELECTED' && verification.participant ? (
+                      <>
+                        <div className="flex justify-between items-center pb-1.5 border-b border-rose-500/20">
+                          <span className="text-slate-400">Candidate:</span>
+                          <strong className="text-white font-bold text-sm">{verification.participant.name}</strong>
+                        </div>
+                        <div className="flex justify-between items-center pb-1.5 border-b border-rose-500/20">
+                          <span className="text-slate-400">Current Status:</span>
+                          <span className="font-mono font-bold text-rose-400 px-2 py-0.5 rounded bg-rose-950/60 border border-rose-500/40">
+                            {verification.participant.selection_status}
+                          </span>
+                        </div>
+                        <p className="text-rose-200/90 text-xs pt-1 leading-relaxed">
+                          ⛔ <strong>Do not admit:</strong> This candidate's seat was released and re-assigned to the waitlist pool due to unconfirmed RSVP deadline.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold text-sm text-white">
+                          "This invitation could not be verified."
+                        </p>
+                        <p className="text-slate-400">
+                          Scanned ID <code className="font-mono text-rose-300 font-bold">{scannedId}</code> does not exist in the database.
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   <button

@@ -597,6 +597,152 @@ app.post('/api/reset-120', async (req, res) => {
   });
 });
 
+// 7.1. Sync with Cloud Database (Live Refresh)
+app.get('/api/sync-cloud', async (req, res) => {
+  try {
+    await loadDatabase();
+    const confirmedCount = Object.values(db.participants).filter(p => p.selection_status === 'SELECTED' && p.rsvp_status === 'CONFIRMED').length;
+    res.json({
+      success: true,
+      message: 'Synced latest live data from Cloud Database.',
+      total: Object.keys(db.participants).length,
+      confirmedCount,
+      participants: Object.values(db.participants)
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 7.5. Smart RSVP Re-Selection & Year-Matched Backfill Algorithm
+// Keeps CONFIRMED attendees 100% locked & safe, releases unconfirmed seats, and backfills new candidates matching each candidate's exact year of study.
+app.post('/api/participants/rsvp-backfill', async (req, res) => {
+  try {
+    const {
+      targetTotal = 120,
+      collegeFilter = 'ALL',
+      yearFilter = 'ALL',
+      matchYearStrictly = true,
+      unconfirmedAction = 'WAITLISTED', // 'WAITLISTED' | 'REJECTED'
+    } = req.body;
+
+    // Reload latest database state from cloud before running algorithm
+    if (pool) {
+      await loadDatabase();
+    }
+
+    const all = Object.values(db.participants);
+
+    // 1. Separate CONFIRMED attendees (100% locked & safe)
+    const confirmed = all.filter(p => p.selection_status === 'SELECTED' && p.rsvp_status === 'CONFIRMED');
+    
+    // 2. Identify unconfirmed candidates who currently hold a SELECTED seat
+    const unconfirmedSelected = all.filter(p => p.selection_status === 'SELECTED' && p.rsvp_status !== 'CONFIRMED');
+
+    // 3. Count unconfirmed vacancies per year of study
+    const vacanciesByYear: Record<string, number> = {};
+    for (const p of unconfirmedSelected) {
+      const year = p.year_of_study || 'General / Unspecified';
+      vacanciesByYear[year] = (vacanciesByYear[year] || 0) + 1;
+    }
+
+    // 4. Release unconfirmed seats
+    for (const p of unconfirmedSelected) {
+      if (db.participants[p.unique_id]) {
+        db.participants[p.unique_id].selection_status = unconfirmedAction as any;
+      }
+    }
+
+    // 5. Build eligible candidate pool from non-selected participants
+    let eligiblePool = all.filter(p => {
+      // Must not be confirmed or currently selected, and must not have explicitly declined
+      const isConfirmed = confirmed.some(c => c.unique_id === p.unique_id);
+      const isSelected = p.selection_status === 'SELECTED';
+      const hasDeclined = p.rsvp_status === 'DECLINED';
+      return !isConfirmed && !isSelected && !hasDeclined;
+    });
+
+    if (collegeFilter !== 'ALL') {
+      eligiblePool = eligiblePool.filter(p => p.college === collegeFilter);
+    }
+
+    const newlySelected: Participant[] = [];
+    const yearBreakdown: Record<string, { released: number; backfilled: number }> = {};
+
+    if (matchYearStrictly) {
+      // 6a. Exact Year-Matched Backfill: 1st year replaces 1st year, 2nd year replaces 2nd year, etc.
+      for (const [year, countNeeded] of Object.entries(vacanciesByYear)) {
+        yearBreakdown[year] = { released: countNeeded, backfilled: 0 };
+
+        const yearCandidates = eligiblePool.filter(p => {
+          const pYear = p.year_of_study || 'General / Unspecified';
+          const matchesYear = year === 'General / Unspecified' ? true : (pYear === year);
+          return matchesYear && !newlySelected.some(s => s.unique_id === p.unique_id);
+        });
+
+        // Fisher-Yates shuffle for true randomness
+        const shuffled = [...yearCandidates];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        const picked = shuffled.slice(0, countNeeded);
+        newlySelected.push(...picked);
+        yearBreakdown[year].backfilled = picked.length;
+      }
+
+      // If any year pool was exhausted, backfill remaining shortfall from general pool
+      const totalVacancies = unconfirmedSelected.length;
+      const shortfall = totalVacancies - newlySelected.length;
+      if (shortfall > 0) {
+        const remainingPool = eligiblePool.filter(p => !newlySelected.some(s => s.unique_id === p.unique_id));
+        const shuffledRemaining = [...remainingPool].sort(() => 0.5 - Math.random());
+        const extraPicked = shuffledRemaining.slice(0, shortfall);
+        newlySelected.push(...extraPicked);
+      }
+    } else {
+      // 6b. General random backfill
+      if (yearFilter !== 'ALL') {
+        eligiblePool = eligiblePool.filter(p => p.year_of_study === yearFilter);
+      }
+      const shuffledPool = [...eligiblePool].sort(() => 0.5 - Math.random());
+      newlySelected.push(...shuffledPool.slice(0, unconfirmedSelected.length));
+    }
+
+    const newlySelectedIds = new Set(newlySelected.map(p => p.unique_id));
+
+    // Update newly selected in database
+    for (const p of newlySelected) {
+      if (db.participants[p.unique_id]) {
+        db.participants[p.unique_id].selection_status = 'SELECTED';
+        db.participants[p.unique_id].rsvp_status = 'PENDING';
+      }
+    }
+
+    await saveDatabase();
+
+    const totalSelectedNow = Object.values(db.participants).filter(p => p.selection_status === 'SELECTED').length;
+
+    return res.json({
+      success: true,
+      message: `Successfully locked ${confirmed.length} confirmed attendees, released ${unconfirmedSelected.length} unconfirmed seats, and backfilled ${newlySelected.length} new candidates matching each specific year!`,
+      targetTotal,
+      confirmedCount: confirmed.length,
+      releasedCount: unconfirmedSelected.length,
+      newlySelectedCount: newlySelected.length,
+      totalSelected: totalSelectedNow,
+      yearBreakdown,
+      confirmedIds: confirmed.map(p => p.unique_id),
+      releasedIds: unconfirmedSelected.map(p => p.unique_id),
+      newlySelectedIds: Array.from(newlySelectedIds)
+    });
+  } catch (err: any) {
+    console.error('RSVP backfill error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to execute RSVP backfill algorithm.' });
+  }
+});
+
 // 8. Clear database
 app.post('/api/clear', async (req, res) => {
   db.participants = {};
@@ -760,7 +906,8 @@ app.post('/api/email/test', async (req, res) => {
       });
     }
 
-    const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
+    const rawOrigin = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://cloud9-invitation.onrender.com');
+    const baseUrl = rawOrigin.includes('localhost') ? 'https://cloud9-invitation.onrender.com' : rawOrigin;
     const sampleParticipant = Object.values(db.participants).find(p => p.selection_status === 'SELECTED') || {
       unique_id: 'C9-SAMPLE',
       name: 'Sample Candidate'
@@ -880,7 +1027,8 @@ app.post('/api/email/bulk-send', async (req, res) => {
       });
     }
 
-    const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
+    const rawOrigin = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://cloud9-invitation.onrender.com');
+    const baseUrl = rawOrigin.includes('localhost') ? 'https://cloud9-invitation.onrender.com' : rawOrigin;
 
     const results: Array<{ id: string; name: string; email: string; success: boolean; error?: string }> = [];
 

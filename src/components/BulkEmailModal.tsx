@@ -6,14 +6,35 @@ interface BulkEmailModalProps {
   isOpen: boolean;
   onClose: () => void;
   participants: Participant[];
+  prefilteredIds?: string[];
 }
 
 export const BulkEmailModal: React.FC<BulkEmailModalProps> = ({
   isOpen,
   onClose,
   participants,
+  prefilteredIds,
 }) => {
-  const selectedParticipants = participants.filter((p) => p.selection_status === 'SELECTED');
+  const [targetAudience, setTargetAudience] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'PREFILTERED'>(
+    prefilteredIds && prefilteredIds.length > 0 ? 'PREFILTERED' : 'ALL'
+  );
+
+  const selectedCandidates = participants.filter((p) => p.selection_status === 'SELECTED');
+
+  const targets = (() => {
+    if (targetAudience === 'PREFILTERED' && prefilteredIds && prefilteredIds.length > 0) {
+      return participants.filter(p => prefilteredIds.includes(p.unique_id));
+    }
+    if (targetAudience === 'PENDING') {
+      return selectedCandidates.filter(p => p.rsvp_status !== 'CONFIRMED');
+    }
+    if (targetAudience === 'CONFIRMED') {
+      return selectedCandidates.filter(p => p.rsvp_status === 'CONFIRMED');
+    }
+    return selectedCandidates;
+  })();
+
+  const selectedParticipants = targets;
   
   const [activeTab, setActiveTab] = useState<'server' | 'client' | 'copy'>('server');
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -38,7 +59,8 @@ export const BulkEmailModal: React.FC<BulkEmailModalProps> = ({
 
   if (!isOpen) return null;
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://chipset.community';
+  const rawOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://cloud9-invitation.onrender.com';
+  const baseUrl = rawOrigin.includes('localhost') ? 'https://cloud9-invitation.onrender.com' : rawOrigin;
 
   const allEmails = Array.from(
     new Set(
@@ -222,6 +244,57 @@ See you at the launchpad! ☁️✨`;
             <p className="text-xs text-slate-400 mt-1">
               Automatically sends each candidate their <strong>individual name and personal pass link (<code className="text-amber-300 font-mono">/verify?id=...</code>)</strong>.
             </p>
+
+            {/* Target Audience Filter Selector */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-white/10">
+              <span className="text-[11px] font-bold text-slate-400 mr-1">Recipient Target:</span>
+              <button
+                type="button"
+                onClick={() => setTargetAudience('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                  targetAudience === 'ALL'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                }`}
+              >
+                All Selected ({selectedCandidates.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetAudience('PENDING')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                  targetAudience === 'PENDING'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'bg-white/5 text-amber-300/80 hover:bg-white/10'
+                }`}
+              >
+                Pending RSVP ({selectedCandidates.filter(p => p.rsvp_status !== 'CONFIRMED').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetAudience('CONFIRMED')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                  targetAudience === 'CONFIRMED'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'bg-white/5 text-emerald-300/80 hover:bg-white/10'
+                }`}
+              >
+                Confirmed Only ({selectedCandidates.filter(p => p.rsvp_status === 'CONFIRMED').length})
+              </button>
+              {prefilteredIds && prefilteredIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTargetAudience('PREFILTERED')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    targetAudience === 'PREFILTERED'
+                      ? 'bg-amber-500 text-slate-950 shadow'
+                      : 'bg-white/5 text-purple-300 hover:bg-white/10'
+                  }`}
+                >
+                  ✨ Newly Backfilled ({prefilteredIds.length})
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

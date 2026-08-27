@@ -52,13 +52,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [lotteryFeedback, setLotteryFeedback] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
 
+  // Smart RSVP Backfill Algorithm state
+  const [lotteryMode, setLotteryMode] = useState<'backfill' | 'fresh'>('backfill');
+  const [backfillTargetTotal, setBackfillTargetTotal] = useState(120);
+  const [backfillCollegeFilter, setBackfillCollegeFilter] = useState('ALL');
+  const [backfillYearFilter, setBackfillYearFilter] = useState('ALL');
+  const [matchYearStrictly, setMatchYearStrictly] = useState(true);
+  const [backfillUnconfirmedAction, setBackfillUnconfirmedAction] = useState<'WAITLISTED' | 'REJECTED'>('WAITLISTED');
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<any | null>(null);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+
   // Swap candidates state
   const [swapOriginal, setSwapOriginal] = useState<Participant | null>(null);
   const [swapSearch, setSwapSearch] = useState('');
   const [swapping, setSwapping] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailPrefilteredIds, setEmailPrefilteredIds] = useState<string[] | undefined>(undefined);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSyncCloud = async () => {
+    try {
+      setSyncingCloud(true);
+      const res = await fetch('/api/sync-cloud');
+      const data = await res.json();
+      if (res.ok) {
+        onRefresh();
+        alert(`Cloud sync complete! Loaded ${data.total} participants (${data.confirmedCount} confirmed).`);
+      } else {
+        alert(data.message || 'Failed to sync with cloud.');
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      alert('Network error syncing with cloud database.');
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
 
   // Filter participants
   const filteredParticipants = participants.filter((p) => {
@@ -422,8 +453,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            id="btn-sync-cloud-db"
+            onClick={handleSyncCloud}
+            disabled={syncingCloud}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+            title="Sync live RSVP confirmations from Cloud Database"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncingCloud ? 'animate-spin' : ''}`} />
+            {syncingCloud ? 'Syncing Cloud...' : 'Sync Live Cloud'}
+          </button>
+
+          <button
             id="btn-admin-email-all"
-            onClick={() => setIsEmailModalOpen(true)}
+            onClick={() => {
+              setEmailPrefilteredIds(undefined);
+              setIsEmailModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black transition cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
           >
             <Mail className="w-3.5 h-3.5" /> Email All Selected
@@ -759,21 +804,80 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
           </div>
         </div>
       )}
-      {/* TAB 4: Selection Draw (Lottery) */}
+      {/* TAB 4: Selection Draw & Smart RSVP Backfill */}
       {activeTab === 'lottery' && (() => {
         // Dynamic filters extraction
         const colleges = Array.from(new Set(participants.map(p => p.college).filter(Boolean))) as string[];
         const years = Array.from(new Set(participants.map(p => p.year_of_study).filter(Boolean))) as string[];
 
-        // Count candidate pool matching current filters
-        const pool = participants.filter((p) => {
+        const confirmedAttendees = participants.filter(p => p.selection_status === 'SELECTED' && p.rsvp_status === 'CONFIRMED');
+        const unconfirmedSelected = participants.filter(p => p.selection_status === 'SELECTED' && p.rsvp_status !== 'CONFIRMED');
+        
+        // Available non-selected candidates
+        const eligibleBackfillPool = participants.filter(p => {
+          const isConfirmed = p.selection_status === 'SELECTED' && p.rsvp_status === 'CONFIRMED';
+          const isSelected = p.selection_status === 'SELECTED';
+          const hasDeclined = p.rsvp_status === 'DECLINED';
+          const matchesCollege = backfillCollegeFilter === 'ALL' || p.college === backfillCollegeFilter;
+          const matchesYear = backfillYearFilter === 'ALL' || p.year_of_study === backfillYearFilter;
+          return !isConfirmed && !isSelected && !hasDeclined && matchesCollege && matchesYear;
+        });
+
+        const vacantSeats = Math.max(0, backfillTargetTotal - confirmedAttendees.length);
+
+        // Standard draw pool
+        const standardPool = participants.filter((p) => {
           const matchesCollege = selectedCollegeFilter === 'ALL' || p.college === selectedCollegeFilter;
           const matchesYear = selectedYearFilter === 'ALL' || p.year_of_study === selectedYearFilter;
           return matchesCollege && matchesYear;
         });
 
-        // Run selection draw logic
-        const handleRunDraw = async () => {
+        // Run Smart RSVP Backfill
+        const handleRunBackfill = async () => {
+          if (vacantSeats === 0) {
+            alert(`You already have ${confirmedAttendees.length} confirmed attendees which meets or exceeds your target of ${backfillTargetTotal}. No new seats needed.`);
+            return;
+          }
+          if (eligibleBackfillPool.length === 0) {
+            alert('No eligible unselected candidates match your filters for backfill.');
+            return;
+          }
+
+          const confirmMsg = `Are you sure you want to run the Smart RSVP Re-Selection Algorithm?\n\n• ${confirmedAttendees.length} Confirmed Attendees will stay 100% LOCKED & SAFE.\n• ${unconfirmedSelected.length} Unconfirmed Candidates will have their seats released.\n• ${Math.min(vacantSeats, eligibleBackfillPool.length)} New Candidates will be randomly selected from the remaining pool.`;
+          if (!window.confirm(confirmMsg)) return;
+
+          setBackfilling(true);
+          setBackfillResult(null);
+
+          try {
+            const res = await fetch('/api/participants/rsvp-backfill', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                targetTotal: backfillTargetTotal,
+                collegeFilter: backfillCollegeFilter,
+                yearFilter: backfillYearFilter,
+                unconfirmedAction: backfillUnconfirmedAction
+              })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+              setBackfillResult(data);
+              onRefresh();
+            } else {
+              alert(data.message || 'Failed to run RSVP backfill.');
+            }
+          } catch (err: any) {
+            console.error('Backfill error:', err);
+            alert('Network error while running RSVP backfill algorithm.');
+          } finally {
+            setBackfilling(false);
+          }
+        };
+
+        // Standard draw logic
+        const handleRunStandardDraw = async () => {
           if (drawCount <= 0) {
             alert('Please enter a valid count of candidates to select.');
             return;
@@ -783,18 +887,16 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
           setLotteryFeedback(null);
 
           try {
-            // Shuffle indices of matching pool
-            const poolIndices = Array.from({ length: pool.length }, (_, i) => i);
+            const poolIndices = Array.from({ length: standardPool.length }, (_, i) => i);
             for (let i = poolIndices.length - 1; i > 0; i--) {
               const j = Math.floor(Math.random() * (i + 1));
               [poolIndices[i], poolIndices[j]] = [poolIndices[j], poolIndices[i]];
             }
 
             const selectedPoolIds = new Set(
-              poolIndices.slice(0, drawCount).map(idx => pool[idx].unique_id)
+              poolIndices.slice(0, drawCount).map(idx => standardPool[idx].unique_id)
             );
 
-            // Update matched pool statuses, leave others unchanged
             const updatedParticipants = participants.map((p) => {
               const matchesCollege = selectedCollegeFilter === 'ALL' || p.college === selectedCollegeFilter;
               const matchesYear = selectedYearFilter === 'ALL' || p.year_of_study === selectedYearFilter;
@@ -815,12 +917,12 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
             });
 
             if (res.ok) {
-              const countSelected = Math.min(drawCount, pool.length);
-              setLotteryFeedback(`✅ Success! Selected ${countSelected} random participants out of ${pool.length} matching candidates.`);
+              const countSelected = Math.min(drawCount, standardPool.length);
+              setLotteryFeedback(`✅ Success! Selected ${countSelected} random participants out of ${standardPool.length} matching candidates.`);
               onRefresh();
             } else {
               const data = await res.json();
-              setLotteryFeedback(`❌ Ingestion failed: ${data.message}`);
+              setLotteryFeedback(`❌ Selection draw failed: ${data.message}`);
             }
           } catch (err) {
             console.error('Lottery draw error:', err);
@@ -830,95 +932,401 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
           }
         };
 
+        // Year breakdown computation for live display
+        const yearStats: Record<string, { confirmed: number; unconfirmed: number; pool: number }> = {};
+        for (const p of participants) {
+          const y = p.year_of_study || 'Other';
+          if (!yearStats[y]) yearStats[y] = { confirmed: 0, unconfirmed: 0, pool: 0 };
+          if (p.selection_status === 'SELECTED') {
+            if (p.rsvp_status === 'CONFIRMED') yearStats[y].confirmed++;
+            else yearStats[y].unconfirmed++;
+          } else {
+            yearStats[y].pool++;
+          }
+        }
+
         return (
-          <div className="bg-[#0e0d14] border border-amber-500/25 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-w-2xl mx-auto">
-            <div>
-              <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-400" />
-                Lottery Selection Draw Wizard
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Filter the registered participants by college domain or year of study, then enter the target number of passes to draw. The system will perform a secure random selection from that pool.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* College Filter */}
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-amber-400">Filter College Domain</label>
-                <select
-                  value={selectedCollegeFilter}
-                  onChange={(e) => {
-                    setSelectedCollegeFilter(e.target.value);
-                    setLotteryFeedback(null);
-                  }}
-                  className="w-full bg-black/50 border border-amber-500/30 text-amber-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="ALL">All Colleges ({colleges.length})</option>
-                  {colleges.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Year Filter */}
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-amber-400">Filter Year of Study</label>
-                <select
-                  value={selectedYearFilter}
-                  onChange={(e) => {
-                    setSelectedYearFilter(e.target.value);
-                    setLotteryFeedback(null);
-                  }}
-                  className="w-full bg-black/50 border border-amber-500/30 text-amber-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="ALL">All Years ({years.length})</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Candidate Pool Indicator */}
-            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-300">Matching Candidates Pool Size</p>
-                <p className="text-[10px] text-slate-500">Candidates matching the criteria above</p>
-              </div>
-              <div className="text-xl font-mono font-black text-amber-400">
-                {pool.length}
-              </div>
-            </div>
-
-            {/* Target Select Count Input */}
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold text-amber-400">Number of Participants to Select</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  max={pool.length}
-                  value={drawCount}
-                  onChange={(e) => {
-                    setDrawCount(Math.max(1, parseInt(e.target.value) || 0));
-                    setLotteryFeedback(null);
-                  }}
-                  className="w-32 px-3 py-2 text-sm bg-black/40 border border-amber-500/30 rounded-xl text-white focus:outline-none focus:border-amber-400"
-                />
+          <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Mode Switcher */}
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-2xl bg-black/60 p-1.5 border border-amber-500/30 gap-2">
                 <button
-                  onClick={handleRunDraw}
-                  disabled={drawing || pool.length === 0}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-6 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm transition-all shadow-md shadow-amber-500/25 active:scale-95 disabled:opacity-50 cursor-pointer animate-pulse"
+                  type="button"
+                  onClick={() => setLotteryMode('backfill')}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${
+                    lotteryMode === 'backfill'
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
                 >
-                  {drawing ? 'Drawing Lot...' : 'Run Selection Draw'}
+                  <Shuffle className="w-4 h-4" />
+                  Smart RSVP Re-Selection (Backfill)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLotteryMode('fresh')}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${
+                    lotteryMode === 'fresh'
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Full Random Lottery Draw
                 </button>
               </div>
             </div>
 
-            {lotteryFeedback && (
-              <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 text-xs text-slate-200">
-                {lotteryFeedback}
+            {/* MODE 1: SMART RSVP BACKFILL */}
+            {lotteryMode === 'backfill' && (
+              <div className="bg-[#0e0d14] border-2 border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      Attendance Optimization Engine
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Exact Year Matching Supported
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-white">
+                    Smart RSVP Re-Selection & Backfill Algorithm
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Protects all <strong className="text-emerald-400">Confirmed Attendees</strong> from being modified, releases seats for <strong className="text-amber-400">Unconfirmed / Pending candidates</strong>, and backfills new candidates matching their <strong>exact Year of Study</strong>.
+                  </p>
+                </div>
+
+                {/* 4 Partition Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 text-center">
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">
+                      🔒 Confirmed (Locked)
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-white mt-1 block">
+                      {confirmedAttendees.length}
+                    </span>
+                    <span className="text-[10px] text-emerald-300/80">100% Safe & Guaranteed</span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-center">
+                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                      🔄 Unconfirmed Seats
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-amber-300 mt-1 block">
+                      {unconfirmedSelected.length}
+                    </span>
+                    <span className="text-[10px] text-amber-300/70">To be swapped out</span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/40 text-center">
+                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider block">
+                      👥 Eligible Pool
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-purple-200 mt-1 block">
+                      {eligibleBackfillPool.length}
+                    </span>
+                    <span className="text-[10px] text-purple-300/70">Waiting candidates</span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-black/60 border border-amber-500/30 text-center">
+                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                      ⚡ Seats to Fill
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-amber-400 mt-1 block">
+                      {vacantSeats}
+                    </span>
+                    <span className="text-[10px] text-slate-400">Target: {backfillTargetTotal}</span>
+                  </div>
+                </div>
+
+                {/* Live Year Distribution Preview */}
+                <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/20 space-y-2">
+                  <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider block">
+                    📊 Live Year-Wise Quota Status
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    {Object.entries(yearStats).map(([yr, st]) => (
+                      <div key={yr} className="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1">
+                        <p className="font-bold text-white text-[11px] truncate">{yr}</p>
+                        <div className="text-[10px] text-slate-300 flex justify-between">
+                          <span className="text-emerald-400">🔒 Confirmed:</span>
+                          <span className="font-mono font-bold">{st.confirmed}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300 flex justify-between">
+                          <span className="text-amber-400">🔄 Unconfirmed:</span>
+                          <span className="font-mono font-bold">{st.unconfirmed}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300 flex justify-between">
+                          <span className="text-purple-300">👥 Pool:</span>
+                          <span className="font-mono">{st.pool}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Filters & Options Grid */}
+                <div className="p-5 rounded-2xl bg-black/50 border border-amber-500/20 space-y-4">
+                  <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                    Backfill Selection Criteria
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {/* Target Total */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                        Total Target Seats
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={backfillTargetTotal}
+                        onChange={(e) => setBackfillTargetTotal(Math.max(1, parseInt(e.target.value) || 120))}
+                        className="w-full px-3.5 py-2 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+
+                    {/* College Filter */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                        Filter College Domain
+                      </label>
+                      <select
+                        value={backfillCollegeFilter}
+                        onChange={(e) => setBackfillCollegeFilter(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      >
+                        <option value="ALL">All Colleges ({colleges.length})</option>
+                        {colleges.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Year Filter */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                        Filter Year of Study
+                      </label>
+                      <select
+                        value={backfillYearFilter}
+                        onChange={(e) => setBackfillYearFilter(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      >
+                        <option value="ALL">All Years ({years.length})</option>
+                        {years.map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Year Matching Toggle */}
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/10 text-xs">
+                    <div>
+                      <span className="text-amber-300 font-bold block">🎓 Year-for-Year Exact Match:</span>
+                      <span className="text-[11px] text-slate-400">
+                        1st Year unconfirmed replaced by 1st Year; 2nd Year by 2nd Year, etc.
+                      </span>
+                    </div>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+                      <input
+                        type="checkbox"
+                        checked={matchYearStrictly}
+                        onChange={(e) => setMatchYearStrictly(e.target.checked)}
+                        className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                      />
+                      Strict Year Match Enabled
+                    </label>
+                  </div>
+
+                  {/* Unconfirmed Action */}
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-white/10 text-xs">
+                    <span className="text-slate-300 font-medium">Status for unconfirmed seat holders:</span>
+                    <div className="flex gap-2">
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-amber-300 font-bold">
+                        <input
+                          type="radio"
+                          name="unconfirmedAction"
+                          checked={backfillUnconfirmedAction === 'WAITLISTED'}
+                          onChange={() => setBackfillUnconfirmedAction('WAITLISTED')}
+                          className="accent-amber-500"
+                        />
+                        Move to Waitlist
+                      </label>
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-rose-400 font-bold ml-3">
+                        <input
+                          type="radio"
+                          name="unconfirmedAction"
+                          checked={backfillUnconfirmedAction === 'REJECTED'}
+                          onChange={() => setBackfillUnconfirmedAction('REJECTED')}
+                          className="accent-rose-500"
+                        />
+                        Move to Rejected
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Launch Backfill Button */}
+                <button
+                  onClick={handleRunBackfill}
+                  disabled={backfilling || vacantSeats === 0 || eligibleBackfillPool.length === 0}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm transition-all shadow-xl shadow-amber-500/25 active:scale-98 disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  <span>
+                    {backfilling 
+                      ? 'Executing Year-Matched Algorithm & Selecting Candidates...' 
+                      : `Run RSVP Backfill Algorithm (Fill ${Math.min(vacantSeats, eligibleBackfillPool.length)} Seats)`
+                    }
+                  </span>
+                </button>
+
+                {/* Backfill Result Box */}
+                {backfillResult && (
+                  <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/60 via-black/60 to-emerald-950/60 border-2 border-emerald-500/40 space-y-3 animate-in fade-in">
+                    <div className="flex items-center gap-2 text-emerald-400 font-black text-sm">
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Year-Matched Backfill Completed Successfully!</span>
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      • <strong className="text-emerald-300">{backfillResult.confirmedCount} Confirmed Attendees</strong> were kept safe & locked.<br/>
+                      • <strong className="text-amber-300">{backfillResult.releasedCount} Unconfirmed Seats</strong> were released.<br/>
+                      • <strong className="text-white font-bold">{backfillResult.newlySelectedCount} New Candidates</strong> were backfilled.
+                    </p>
+
+                    {/* Year breakdown details */}
+                    {backfillResult.yearBreakdown && (
+                      <div className="p-3 rounded-xl bg-black/50 border border-white/10 space-y-1.5">
+                        <span className="text-[11px] font-bold text-amber-300 uppercase block">Year Replacement Details:</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                          {Object.entries(backfillResult.yearBreakdown).map(([yr, b]: [string, any]) => (
+                            <div key={yr} className="p-2 rounded bg-white/5 border border-white/5">
+                              <p className="font-bold text-white">{yr}</p>
+                              <p className="text-slate-300">Released: <strong className="text-amber-300">{b.released}</strong></p>
+                              <p className="text-slate-300">New Selected: <strong className="text-emerald-300">{b.backfilled}</strong></p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          setEmailPrefilteredIds(backfillResult.newlySelectedIds);
+                          setIsEmailModalOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        ✉️ Email Newly Selected Candidates ({backfillResult.newlySelectedCount})
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab('participants');
+                          setStatusFilter('SELECTED');
+                        }}
+                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition cursor-pointer"
+                      >
+                        View All Selected Table ({backfillResult.totalSelected})
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MODE 2: FRESH RANDOM LOTTERY DRAW */}
+            {lotteryMode === 'fresh' && (
+              <div className="bg-[#0e0d14] border border-amber-500/25 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-400" />
+                    Full Lottery Selection Draw Wizard
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Performs a fresh random draw from all imported candidates matching your criteria.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-amber-400">Filter College Domain</label>
+                    <select
+                      value={selectedCollegeFilter}
+                      onChange={(e) => {
+                        setSelectedCollegeFilter(e.target.value);
+                        setLotteryFeedback(null);
+                      }}
+                      className="w-full bg-black/50 border border-amber-500/30 text-amber-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="ALL">All Colleges ({colleges.length})</option>
+                      {colleges.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-amber-400">Filter Year of Study</label>
+                    <select
+                      value={selectedYearFilter}
+                      onChange={(e) => {
+                        setSelectedYearFilter(e.target.value);
+                        setLotteryFeedback(null);
+                      }}
+                      className="w-full bg-black/50 border border-amber-500/30 text-amber-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="ALL">All Years ({years.length})</option>
+                      {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-300">Matching Candidates Pool Size</p>
+                    <p className="text-[10px] text-slate-500">Candidates matching criteria</p>
+                  </div>
+                  <div className="text-xl font-mono font-black text-amber-400">
+                    {standardPool.length}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-amber-400">Number of Participants to Select</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={standardPool.length}
+                      value={drawCount}
+                      onChange={(e) => {
+                        setDrawCount(Math.max(1, parseInt(e.target.value) || 0));
+                        setLotteryFeedback(null);
+                      }}
+                      className="w-32 px-3 py-2 text-sm bg-black/40 border border-amber-500/30 rounded-xl text-white focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      onClick={handleRunStandardDraw}
+                      disabled={drawing || standardPool.length === 0}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-6 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm transition-all shadow-md shadow-amber-500/25 active:scale-95 disabled:opacity-50 cursor-pointer animate-pulse"
+                    >
+                      {drawing ? 'Drawing Lot...' : 'Run Selection Draw'}
+                    </button>
+                  </div>
+                </div>
+
+                {lotteryFeedback && (
+                  <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 text-xs text-slate-200">
+                    {lotteryFeedback}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1061,8 +1469,12 @@ Chakradhar Danesh,messidhanesh2006@gmail.com,Chipset Alpha,SELECTED`}
       {/* Bulk Email Modal */}
       <BulkEmailModal
         isOpen={isEmailModalOpen}
-        onClose={() => setIsEmailModalOpen(false)}
+        onClose={() => {
+          setIsEmailModalOpen(false);
+          setEmailPrefilteredIds(undefined);
+        }}
         participants={participants}
+        prefilteredIds={emailPrefilteredIds}
       />
     </div>
   );

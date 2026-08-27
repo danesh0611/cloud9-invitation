@@ -48,7 +48,8 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
   };
 
   // Verification URL - contains only the unique ID (no sensitive PII inside QR)
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://chipset.community';
+  const rawOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://cloud9-invitation.onrender.com';
+  const baseUrl = rawOrigin.includes('localhost') ? 'https://cloud9-invitation.onrender.com' : rawOrigin;
   const verifyUrl = `${baseUrl}/verify?id=${participant.unique_id}`;
 
   const handleDownloadPng = async () => {
@@ -300,7 +301,41 @@ export const InvitationCard: React.FC<InvitationCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ❌ REVOKED / INVALID OVERLAY FOR REPLACED CANDIDATES */}
+        {participant.selection_status !== 'SELECTED' && (
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center p-6 text-center">
+            <div className="transform -rotate-6 border-4 border-rose-600 bg-rose-950/90 text-rose-300 font-black px-6 py-2 rounded-2xl shadow-2xl tracking-widest uppercase text-base sm:text-2xl animate-pulse mb-3">
+              ⛔ INVITATION PASS REVOKED / EXPIRED
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-md font-medium leading-relaxed">
+              This pass has been <strong className="text-rose-400">invalidated</strong> because the RSVP confirmation deadline lapsed without confirmation, and this seat was re-allocated to the waitlist.
+            </p>
+            <span className="mt-2 text-[10px] font-mono text-rose-400 bg-rose-950/60 px-3 py-1 rounded-full border border-rose-500/40">
+              Status: {participant.selection_status} (Not Eligible for Entry)
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* ⛔ INVITATION REVOKED WARNING BANNER */}
+      {participant.selection_status !== 'SELECTED' && (
+        <div className="w-full max-w-[850px] mt-4 p-5 rounded-2xl border-2 border-rose-500/60 bg-gradient-to-r from-rose-950/80 via-black/90 to-rose-950/80 backdrop-blur-md text-left space-y-2 no-print shadow-2xl shadow-rose-950/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 font-bold shrink-0">
+              ❌
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-rose-400 uppercase tracking-wide">
+                Seat Re-Allocated / Invitation Void
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                As per Cloud9 event allocation policy, unconfirmed seats are automatically released and assigned to the next eligible candidates. This pass QR code will be rejected at the entry gate scanner.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* RSVP Response Panel */}
       {participant.selection_status === 'SELECTED' && (
