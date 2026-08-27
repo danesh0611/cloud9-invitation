@@ -19,6 +19,8 @@ export const BulkEmailModal: React.FC<BulkEmailModalProps> = ({
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
   // Automated Dispatch Credentials
+  const [provider, setProvider] = useState<'resend' | 'gmail'>('resend');
+  const [resendApiKey, setResendApiKey] = useState('');
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -89,14 +91,16 @@ See you at the launchpad! ☁️✨`;
     setTimeout(() => setCopiedType(null), 2500);
   };
 
+  const isConfigReady = provider === 'resend' ? Boolean(resendApiKey.trim()) : (Boolean(smtpUser.trim()) && Boolean(smtpPass.trim()));
+
   const handleSendTestEmail = async () => {
-    if (!smtpUser.trim() || !smtpPass.trim()) {
-      alert('Please enter your email and 16-character App Password first.');
+    if (!isConfigReady) {
+      alert(provider === 'resend' ? 'Please enter your Resend API Key.' : 'Please enter your Gmail and 16-character App Password.');
       return;
     }
     const target = testEmail.trim() || smtpUser.trim();
     if (!target) {
-      alert('Please enter a test recipient email address.');
+      alert('Please enter a test recipient email address in Step 1.');
       return;
     }
 
@@ -107,8 +111,9 @@ See you at the launchpad! ☁️✨`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          smtpUser: smtpUser.trim(),
-          smtpPass: smtpPass.trim(),
+          apiKey: provider === 'resend' ? resendApiKey.trim() : undefined,
+          smtpUser: provider === 'gmail' ? smtpUser.trim() : undefined,
+          smtpPass: provider === 'gmail' ? smtpPass.trim() : undefined,
           testEmail: target,
           originUrl: baseUrl
         })
@@ -126,13 +131,14 @@ See you at the launchpad! ☁️✨`;
   };
 
   const handleServerBulkDispatch = async () => {
-    if (!smtpUser.trim() || !smtpPass.trim()) {
-      alert('Please enter your email and 16-character App Password to start automated dispatch.');
+    if (!isConfigReady) {
+      alert(provider === 'resend' ? 'Please enter your Resend API Key.' : 'Please enter your Gmail and 16-character App Password.');
       return;
     }
     if (selectedParticipants.length === 0) return;
 
-    const confirmMsg = `Are you sure you want to automatically dispatch personalized passes to all ${selectedParticipants.length} selected candidates from ${smtpUser}?`;
+    const senderDesc = provider === 'resend' ? 'Resend Cloud API' : smtpUser;
+    const confirmMsg = `Are you sure you want to automatically dispatch personalized passes to all ${selectedParticipants.length} selected candidates via ${senderDesc}?`;
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -144,8 +150,9 @@ See you at the launchpad! ☁️✨`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          smtpUser: smtpUser.trim(),
-          smtpPass: smtpPass.trim(),
+          apiKey: provider === 'resend' ? resendApiKey.trim() : undefined,
+          smtpUser: provider === 'gmail' ? smtpUser.trim() : undefined,
+          smtpPass: provider === 'gmail' ? smtpPass.trim() : undefined,
           subject: customSubject.trim(),
           originUrl: baseUrl,
           participantIds: selectedParticipants.map((p) => p.unique_id)
@@ -268,61 +275,115 @@ See you at the launchpad! ☁️✨`;
                 The server loops through all <strong className="text-white">{selectedParticipants.length} candidates</strong>. Every participant receives their own email addressed to them with their <strong>specific name</strong>, <strong>unique Selection ID</strong>, and <strong>direct personal pass link to RSVP</strong>.
               </div>
 
-              {/* Email Credentials Box */}
-              <div className="p-5 rounded-2xl bg-black/60 border border-amber-500/30 space-y-3.5">
-                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
-                  <KeyRound className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-xs font-black text-amber-300 uppercase tracking-wider">
-                    Enter Sender Email Credentials (e.g. Gmail)
-                  </h3>
+              {/* Email Provider Selector */}
+              <div className="p-5 rounded-2xl bg-black/60 border border-amber-500/30 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                    <h3 className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                      Choose Sending Method
+                    </h3>
+                  </div>
+                  <div className="flex gap-1.5 p-0.5 bg-white/5 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setProvider('resend')}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition ${
+                        provider === 'resend' 
+                          ? 'bg-amber-500 text-black shadow' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ⚡ Resend API (Render Cloud)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProvider('gmail')}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition ${
+                        provider === 'gmail' 
+                          ? 'bg-amber-500 text-black shadow' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✉️ Gmail SMTP
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                      Your Gmail / Sender Email Address
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="e.g. yourname@gmail.com"
-                      value={smtpUser}
-                      onChange={(e) => setSmtpUser(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono placeholder-slate-600 focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                      16-Character App Password
-                    </label>
-                    <div className="relative">
+                {provider === 'resend' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                        Resend API Key (<code className="text-amber-300 font-mono">re_...</code>)
+                      </label>
                       <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="e.g. abcd efgh ijkl mnop"
-                        value={smtpPass}
-                        onChange={(e) => setSmtpPass(e.target.value)}
-                        className="w-full px-3.5 py-2.5 pr-10 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                        type="password"
+                        placeholder="re_123456789_abcdef..."
+                        value={resendApiKey}
+                        onChange={(e) => setResendApiKey(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono placeholder-slate-600 focus:outline-none focus:border-amber-400"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white bg-transparent border-none cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
+                    </div>
+                    
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-200/90 leading-relaxed">
+                      <strong>✨ Why Resend for Render Cloud Hosting?</strong>
+                      <p className="mt-1 text-slate-300">
+                        Render blocks SMTP ports (465/587) to prevent spam. Resend operates over standard <strong>HTTPS (Port 443)</strong>, which is 100% unblocked on Render!
+                      </p>
+                      <p className="mt-1 text-slate-300">
+                        👉 Get a free API key in 30 seconds at <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-bold">resend.com</a> (Free tier includes 3,000 emails/month).
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                          Gmail / Sender Email Address
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="e.g. yourname@gmail.com"
+                          value={smtpUser}
+                          onChange={(e) => setSmtpUser(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
 
-                {/* Gmail App Password Tip */}
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
-                  <strong>💡 How to get a Gmail App Password in 1 minute:</strong>
-                  <ol className="list-decimal list-inside mt-1 space-y-0.5 text-slate-300">
-                    <li>Go to your <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline font-bold">Google Account &gt; App Passwords</a> (ensure 2-Step Verification is ON).</li>
-                    <li>Type App Name: <strong className="text-white">Cloud9</strong> and click <strong>Create</strong>.</li>
-                    <li>Copy the 16-letter password and paste it above.</li>
-                  </ol>
-                </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                          16-Character App Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="e.g. abcd efgh ijkl mnop"
+                            value={smtpPass}
+                            onChange={(e) => setSmtpPass(e.target.value)}
+                            className="w-full px-3.5 py-2.5 pr-10 bg-black/80 border border-amber-500/30 rounded-xl text-white text-xs font-mono placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white bg-transparent border-none cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
+                      <strong>💡 Gmail App Password Instructions:</strong>
+                      <ol className="list-decimal list-inside mt-1 space-y-0.5 text-slate-300">
+                        <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline font-bold">Google App Passwords</a>.</li>
+                        <li>Type App Name: <strong className="text-white">Cloud9</strong> &gt; Click <strong>Create</strong>.</li>
+                        <li>Copy the 16-letter password into the box above.</li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Subject */}
@@ -355,7 +416,7 @@ See you at the launchpad! ☁️✨`;
                 <button
                   type="button"
                   onClick={handleSendTestEmail}
-                  disabled={isTesting || !smtpUser || !smtpPass}
+                  disabled={isTesting || !isConfigReady}
                   className="sm:mt-5 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer disabled:opacity-40 flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
                   <TestTube className="w-3.5 h-3.5" />
@@ -377,7 +438,7 @@ See you at the launchpad! ☁️✨`;
               {/* Step 2: Main Launch Button */}
               <button
                 onClick={handleServerBulkDispatch}
-                disabled={isSending || !smtpUser.trim() || !smtpPass.trim() || selectedParticipants.length === 0}
+                disabled={isSending || !isConfigReady || selectedParticipants.length === 0}
                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:opacity-95 text-slate-950 font-black text-sm transition-all shadow-xl shadow-emerald-500/25 active:scale-98 disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isSending ? (

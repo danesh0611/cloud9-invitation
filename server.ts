@@ -617,28 +617,89 @@ app.post('/api/logs/clear', async (req, res) => {
   res.json({ success: true, message: 'Logs cleared' });
 });
 
-// 10.4. Send Single Test Email
-app.post('/api/email/test', async (req, res) => {
-  try {
-    const { 
-      smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com',
-      smtpPort = Number(process.env.SMTP_PORT) || 465,
-      smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '',
-      smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '',
-      smtpFrom = process.env.SMTP_FROM || `Cloud9 Organizing Team <${smtpUser}>`,
-      testEmail,
-      originUrl
-    } = req.body;
-
-    if (!smtpUser || !smtpPass) {
-      return res.status(400).json({ success: false, message: 'Please provide SMTP / Gmail user and password / app password.' });
+// Helper for Universal Email Dispatch (Supports Resend HTTPS API for Render + Nodemailer SMTP)
+async function sendSingleEmail({
+  apiKey,
+  smtpHost,
+  smtpPort,
+  smtpUser,
+  smtpPass,
+  from,
+  to,
+  subject,
+  html
+}: {
+  apiKey?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  from?: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<{ success: boolean; error?: string }> {
+  // 1. Resend API (HTTPS Port 443 - 100% works on Render without port blocks)
+  const resendKey = (apiKey && apiKey.startsWith('re_')) ? apiKey : (process.env.RESEND_API_KEY || '');
+  if (resendKey) {
+    try {
+      const fromAddr = from || process.env.EMAIL_FROM || 'Cloud9 Team <onboarding@resend.dev>';
+      const toList = to.split(',').map(s => s.trim()).filter(Boolean);
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: fromAddr,
+          to: toList,
+          subject: subject,
+          html: html
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.message || JSON.stringify(data) };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     }
+  }
 
-    if (!testEmail) {
-      return res.status(400).json({ success: false, message: 'Please provide a test recipient email address.' });
+  // 2. SendGrid API (HTTPS Port 443)
+  const sendgridKey = (apiKey && apiKey.startsWith('SG.')) ? apiKey : (process.env.SENDGRID_API_KEY || '');
+  if (sendgridKey) {
+    try {
+      const fromEmail = from ? from.replace(/.*<([^>]+)>.*/, '$1') : (smtpUser || 'cloud9@chipset.community');
+      const toList = to.split(',').map(s => ({ email: s.trim() })).filter(Boolean);
+      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sendgridKey.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: toList }],
+          from: { email: fromEmail, name: 'Cloud9 Team' },
+          subject: subject,
+          content: [{ type: 'text/html', value: html }]
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        return { success: false, error: text || 'SendGrid API error' };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     }
+  }
 
-    const isGmail = smtpHost.includes('gmail') || smtpUser.includes('@gmail.com');
+  // 3. SMTP Transport (Gmail / Custom SMTP)
+  if (smtpUser && smtpPass) {
+    const isGmail = (smtpHost || '').includes('gmail') || smtpUser.includes('@gmail.com');
     const transporter = nodemailer.createTransport(
       isGmail
         ? {
@@ -649,15 +710,55 @@ app.post('/api/email/test', async (req, res) => {
             }
           }
         : {
-            host: smtpHost.trim(),
-            port: smtpPort,
-            secure: smtpPort === 465,
+            host: smtpHost || 'smtp.gmail.com',
+            port: smtpPort || 465,
+            secure: (smtpPort || 465) === 465,
             auth: {
               user: smtpUser.trim(),
               pass: smtpPass.trim()
             }
           }
     );
+    try {
+      await transporter.sendMail({
+        from: from || `Cloud9 Organizing Team <${smtpUser}>`,
+        to: to,
+        subject: subject,
+        html: html
+      });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  return { success: false, error: 'No valid Resend API Key or SMTP credentials provided.' };
+}
+
+// 10.4. Send Single Test Email
+app.post('/api/email/test', async (req, res) => {
+  try {
+    const { 
+      apiKey = process.env.RESEND_API_KEY || '',
+      smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com',
+      smtpPort = Number(process.env.SMTP_PORT) || 465,
+      smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '',
+      smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '',
+      smtpFrom,
+      testEmail,
+      originUrl
+    } = req.body;
+
+    if (!testEmail) {
+      return res.status(400).json({ success: false, message: 'Please provide a test recipient email address.' });
+    }
+
+    if (!apiKey && (!smtpUser || !smtpPass)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide either a Resend API Key (for Render) or Gmail credentials.' 
+      });
+    }
 
     const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
     const sampleParticipant = Object.values(db.participants).find(p => p.selection_status === 'SELECTED') || {
@@ -666,7 +767,6 @@ app.post('/api/email/test', async (req, res) => {
     };
 
     const verifyUrl = `${baseUrl}/verify?id=${sampleParticipant.unique_id}`;
-    const whatsappLink = 'https://chat.whatsapp.com/DcV5YL43n8JDO8OFeAxixt?s=cl&p=a&ilr=4';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -685,7 +785,6 @@ app.post('/api/email/test', async (req, res) => {
           .label { color: #94a3b8; font-weight: bold; }
           .value { color: #f8fafc; font-weight: bold; }
           .btn-primary { display: inline-block; background: #f59e0b; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
-          .btn-whatsapp { display: inline-block; background: #25D366; color: #020617 !important; padding: 12px 24px; font-weight: 900; text-decoration: none; border-radius: 12px; margin: 8px 4px 8px 0; font-size: 14px; text-transform: uppercase; }
           .footer { padding: 16px 24px; background: #050508; border-top: 1px solid #1e293b; text-align: center; font-size: 11px; color: #64748b; }
         </style>
       </head>
@@ -724,12 +823,21 @@ app.post('/api/email/test', async (req, res) => {
       </html>
     `;
 
-    await transporter.sendMail({
+    const result = await sendSingleEmail({
+      apiKey,
+      smtpHost,
+      smtpPort,
+      smtpUser,
+      smtpPass,
       from: smtpFrom,
       to: testEmail.trim(),
       subject: `[TEST] 🎉 You are Selected for Cloud9 Event!`,
       html: htmlContent
     });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.error || 'Failed to send test email.' });
+    }
 
     return res.json({
       success: true,
@@ -745,11 +853,12 @@ app.post('/api/email/test', async (req, res) => {
 app.post('/api/email/bulk-send', async (req, res) => {
   try {
     const { 
+      apiKey = process.env.RESEND_API_KEY || '',
       smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com',
       smtpPort = Number(process.env.SMTP_PORT) || 465,
       smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '',
       smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '',
-      smtpFrom = process.env.SMTP_FROM || `Cloud9 Organizing Team <${smtpUser || 'cloud9@chipset.community'}>`,
+      smtpFrom,
       participantIds,
       subject = '🎉 You are Selected for Cloud9 Event! [Action Required: RSVP to Confirm Seat]',
       originUrl
@@ -764,38 +873,14 @@ app.post('/api/email/bulk-send', async (req, res) => {
       return res.status(400).json({ success: false, message: 'No selected participants to email.' });
     }
 
-    if (!smtpUser || !smtpPass) {
+    if (!apiKey && (!smtpUser || !smtpPass)) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Please provide your email address and 16-character App Password to start automated sending.' 
+        message: 'Please provide either a Resend API Key (for Render) or your email credentials to start automated sending.' 
       });
     }
 
     const baseUrl = originUrl || (req.headers.origin ? String(req.headers.origin) : 'https://chipset.community');
-
-    const isGmail = smtpHost.includes('gmail') || smtpUser.includes('@gmail.com');
-    const transporter = nodemailer.createTransport(
-      isGmail
-        ? {
-            service: 'gmail',
-            auth: {
-              user: smtpUser.trim(),
-              pass: smtpPass.trim()
-            }
-          }
-        : {
-            host: smtpHost.trim(),
-            port: smtpPort,
-            secure: smtpPort === 465,
-            auth: {
-              user: smtpUser.trim(),
-              pass: smtpPass.trim()
-            }
-          }
-    );
-
-    // Verify SMTP connection before starting loop
-    await transporter.verify();
 
     const results: Array<{ id: string; name: string; email: string; success: boolean; error?: string }> = [];
 
@@ -866,16 +951,22 @@ app.post('/api/email/bulk-send', async (req, res) => {
         </html>
       `;
 
-      try {
-        await transporter.sendMail({
-          from: smtpFrom,
-          to: toField,
-          subject: subject,
-          html: htmlContent
-        });
+      const sendRes = await sendSingleEmail({
+        apiKey,
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpPass,
+        from: smtpFrom,
+        to: toField,
+        subject: subject,
+        html: htmlContent
+      });
+
+      if (sendRes.success) {
         results.push({ id: participant.unique_id, name: participant.name, email: toField, success: true });
-      } catch (err: any) {
-        results.push({ id: participant.unique_id, name: participant.name, email: toField, success: false, error: err.message });
+      } else {
+        results.push({ id: participant.unique_id, name: participant.name, email: toField, success: false, error: sendRes.error });
       }
 
       // Small throttling delay to avoid rate-limiting
